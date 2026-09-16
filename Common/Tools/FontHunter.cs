@@ -29,7 +29,10 @@ public static class FontHunter
         }
 
         Out.Write($"{inputsWithOutputsCount} files yielded {outputCount} results");
-        Out.Write($"{Math.Floor((Double)inputsWithOutputsCount / inputCount * 100)}% success rate");
+
+        // No inputs means there is no rate to report; 0/0 would print NaN.
+        if (inputCount > 0)
+            Out.Write($"{Math.Floor((Double)inputsWithOutputsCount / inputCount * 100)}% success rate");
     }
 
     private static Int32 ExtractFontFromDumpFile(String fileName, String outputFolder)
