@@ -28,7 +28,7 @@ public static class AssemblyFontFormatter
                     output.AppendFormat(format, glyph.Value.GetRowByte(y));
                 }
 
-                output.Append($" ; {glyph.Key}\n");
+                output.AppendLine($" ; {glyph.Key}");
             }
 
             File.WriteAllText(Utils.MakeFileName(fileName, language + ".asm", outputFolder), output.ToString());

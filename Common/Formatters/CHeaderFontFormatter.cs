@@ -10,6 +10,10 @@ public static class CHeaderFontFormatter
 {
     public static void CreateFontHeaderConst(String byteType, List<String> fileNames, String outputFolder, String credit)
     {
+        // --byteType defaults to uint8_t, but an empty value would emit "static const  FONT_x_BITMAP[]"
+        // which does not compile, so do not rely on the caller for this.
+        if (String.IsNullOrWhiteSpace(byteType)) byteType = "uint8_t";
+
         foreach (var fileName in fileNames)
         {
             var fontName = Path.GetFileNameWithoutExtension(fileName);
@@ -38,7 +42,7 @@ public static class CHeaderFontFormatter
                     output.Append($"0x{glyph.Value.GetRowByte(y):x2}");
                 }
 
-                output.Append($", // {(glyph.Key == '\\' ? @"\ (backslash)" : glyph.Key)} \n");
+                output.AppendLine($", // {(glyph.Key == '\\' ? @"\ (backslash)" : glyph.Key)}");
             }
             output.AppendLine("};");
             output.AppendLine();

@@ -32,7 +32,7 @@ public static class RustHeaderFontFormatter
                     output.Append($"0x{glyph.Value.GetRowByte(y):x2}");
                 }
 
-                output.Append($", // {glyph.Key}\n");
+                output.AppendLine($", // {glyph.Key}");
             }
             output.AppendLine("];");
 
