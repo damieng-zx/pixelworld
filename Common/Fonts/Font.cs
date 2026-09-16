@@ -63,7 +63,14 @@ public class Font(String name, Int32 height = 8) : IEquatable<Font>
 
     public override Int32 GetHashCode()
     {
-        return HashCode.Combine(Name, Height, Glyphs);
+        // Glyphs is a Dictionary, which hashes by identity rather than contents, so combining it
+        // directly gave two fonts that Equals considers equal different hash codes. Fold the entries
+        // in order-independently instead.
+        var glyphHash = 0;
+        foreach (var glyph in Glyphs)
+            glyphHash ^= HashCode.Combine(glyph.Key, glyph.Value);
+
+        return HashCode.Combine(Name, Height, Glyphs.Count, glyphHash);
     }
 
     public Image<Rgba32> CreateImage(Int32 rows, Boolean transparent)
