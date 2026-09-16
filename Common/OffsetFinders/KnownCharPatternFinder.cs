@@ -16,9 +16,10 @@ public static class KnownCharPatternFinder
     {
         var offsets = new HashSet<Int32>();
 
+        // end is the last offset at which a complete font still fits, so it has to be tested too.
         var end = buffer.Length - Spectrum.FontSize;
 
-        for (var i = 0; i < end; i++)
+        for (var i = 0; i <= end; i++)
         {
             foreach (var known in knownFont)
             {

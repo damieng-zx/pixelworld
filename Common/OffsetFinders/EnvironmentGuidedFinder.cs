@@ -19,7 +19,8 @@ public static class EnvironmentGuidedFinder
 
         if (spectrumSysChars <= Spectrum.ScreenStart) return results; // Was not pointing to the ROM
         
-        if (spectrumSysChars + Spectrum.FontSize < buffer.Length && buffer.IsEmpty(spectrumSysChars))
+        // <= not <: a window ending exactly on the last byte is still entirely within the buffer.
+        if (spectrumSysChars + Spectrum.FontSize <= buffer.Length && buffer.IsEmpty(spectrumSysChars))
             results.Add(spectrumSysChars);
         
         return results;

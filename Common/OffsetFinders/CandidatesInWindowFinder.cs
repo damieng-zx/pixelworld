@@ -24,6 +24,7 @@ public static class CandidatesInWindowFinder
         // We don't have enough candidates to even look
         if (candidates.Length < MinUniqueInWindow) return new List<Int32>();
 
+        // end is the last offset at which a complete font still fits, so it has to be tested too.
         var end = buffer.Length - Spectrum.FontSize;
         var ranges = new Dictionary<Int32, Int32>();
 
@@ -31,7 +32,7 @@ public static class CandidatesInWindowFinder
         // only valid on the 8 byte boundary
         var windows = Enumerable.Range(0, 8).Select(_ => new Queue<CandidateLocation>()).ToArray();
 
-        for (var i = 0; i < end; i++)
+        for (var i = 0; i <= end; i++)
         {
             var window = windows[i % 8]; // Decide which window to use based on skewing
 

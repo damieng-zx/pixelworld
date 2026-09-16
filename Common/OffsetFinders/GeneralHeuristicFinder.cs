@@ -41,9 +41,10 @@ public static class GeneralHeuristicFinder
     {
         var offsets = new List<Int32>();
 
+        // end is the last offset at which a complete font still fits, so it has to be tested too.
         var end = buffer.Length - Spectrum.FontSize;
 
-        for (var i = 0; i < end; i++)
+        for (var i = 0; i <= end; i++)
         {
             if (IsLikelyFont(buffer, i))
                 offsets.Add(i);
