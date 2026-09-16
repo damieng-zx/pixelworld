@@ -21,9 +21,10 @@ public static class Dumper
 
     public static Boolean WriteDumpToDisk(String fileName, ArraySegment<Byte> dump, String outputFolder)
     {
-        if (dump.Array is null) throw new ArgumentOutOfRangeException(nameof(dump), "Array is null");
-
-        if (dump.Count < 768)
+        // The snapshot sources signal a failed decode by returning a default ArraySegment, which has a
+        // null Array, so treat that as a skip rather than throwing. Otherwise the first undecodable file
+        // in a batch aborts the whole run instead of the remaining files being dumped.
+        if (dump.Array is null || dump.Count < 768)
         {
             Out.Write($"  Skipping {fileName} as too short {dump.Count}");
             return false;
