@@ -42,7 +42,9 @@ public static class FontHunter
     {
         if (dump.Array is null) throw new ArgumentOutOfRangeException(nameof(dump), "Array is null");
 
-        using var memory = new MemoryStream(dump.Array);
+        // Honour the segment: MemoryStream(byte[]) would scan from the start of the underlying array
+        // and ignore any offset into it.
+        using var memory = new MemoryStream(dump.Array, dump.Offset, dump.Count, false);
         using var reader = new BinaryReader(memory);
         var fontIndex = 0;
         foreach (var font in SpectrumDumpScanner.Read(reader, Path.GetFileNameWithoutExtension(fileName)))
