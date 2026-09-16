@@ -56,8 +56,7 @@ namespace PixelWorld.BinarySource.Decoders
                 var bytesToRead = (Int32)fs.Length;
 
                 var buffer = new Byte[bytesToRead];
-                r.ReadExactly(buffer, 0, bytesToRead);
-                var bytesRead = buffer.Length;
+                var bytesRead = r.Read(buffer, 0, bytesToRead);
 
                 if (bytesRead == 0)
                     return null; //something bad happened!

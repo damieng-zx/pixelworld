@@ -65,9 +65,9 @@ public class ScreenshotCommand : Command<ScreenshotSettings>
     {
         var targetName = Utils.MakeFileName(sourceName, "scr", settings.OutputFolder);
         Out.Write($"  Screenshotting {sourceName} @ {address} to {targetName}");
-        // Take the span from the segment rather than its array so that a segment which is a window into
-        // a larger buffer reads from the window, not from the start of the array.
-        var screenBuffer = memory.AsSpan(address, Spectrum.ScreenSize).ToArray();
+        // memory.Offset is added in because address indexes the segment, and the segment need not start
+        // at the beginning of its array.
+        var screenBuffer = memory.Array.AsSpan(memory.Offset + address, Spectrum.ScreenSize).ToArray();
         File.WriteAllBytes(targetName, screenBuffer);
     }
 
