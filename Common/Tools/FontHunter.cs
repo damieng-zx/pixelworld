@@ -50,7 +50,10 @@ public static class FontHunter
             var newFileName = Utils.MakeFileName(font.Name, "ch8", outputFolder);
             fontIndex++;
             Out.Write($"  Creating byte font {newFileName}");
-            ByteFontFormatter.Write(font, File.Create(newFileName), Spectrum.UK, 96);
+            // ByteFontFormatter.Write leaves the stream open, so it has to be disposed here or every
+            // found font leaks a file handle and a final unflushed block.
+            using var output = File.Create(newFileName);
+            ByteFontFormatter.Write(font, output, Spectrum.UK, 96);
         }
 
         return fontIndex;
