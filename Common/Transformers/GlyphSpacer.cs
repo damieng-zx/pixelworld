@@ -12,6 +12,9 @@ public static class GlyphSpacer
         var newWidth = actualWidth + leftPad + rightPad;
         if (newWidth > maxWidth) newWidth = maxWidth;
 
+        // Negative padding can drive this below zero, which GlyphShifter cannot allocate.
+        if (newWidth < 0) newWidth = 0;
+
         return GlyphShifter.Shift(source, 0 - right + leftPad, 0, false, newWidth);
     }
 

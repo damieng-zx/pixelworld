@@ -17,6 +17,11 @@ public static class FontSpacer
         var spaceWidth = maxWidth - leftPad - rightPad;
         if (target.Glyphs.TryGetValue('{', out var braceGlyph))
             spaceWidth = braceGlyph.Width - leftPad - rightPad;
+
+        // Padding wider than the glyph would leave a negative width, and new Boolean[negative, ...]
+        // throws. Clamp so an over-padded space becomes zero width instead.
+        if (spaceWidth < 0) spaceWidth = 0;
+
         target.Glyphs[' '] = new Glyph(spaceWidth, source.Height, new Boolean[spaceWidth, source.Height]);
 
         return target;
