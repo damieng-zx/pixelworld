@@ -136,7 +136,10 @@ public static class UfoFontFormatter
 
         foreach (var (key, glyphData) in font.Glyphs)
         {
-            var name = CharToName[key];
+            // Not every character in a charset has an AGL name: Spectrum.UK maps its last slots to
+            // U+007F-U+0081, so a font read from a file longer than 768 bytes contains keys that are
+            // absent here. Fall back to the standard uniXXXX form rather than throwing.
+            var name = CharToName.TryGetValue(key, out var mappedName) ? mappedName : $"uni{(Int32)key:X4}";
             nameAttribute.Value = name;
             hexAttribute.Value = ((Int32)key).ToString("X4");
             outlineElement.RemoveAll();
