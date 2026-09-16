@@ -56,7 +56,8 @@ namespace PixelWorld.BinarySource.Decoders
                 var bytesToRead = (Int32)fs.Length;
 
                 var buffer = new Byte[bytesToRead];
-                var bytesRead = r.Read(buffer, 0, bytesToRead);
+                r.ReadExactly(buffer, 0, bytesToRead);
+                var bytesRead = buffer.Length;
 
                 if (bytesRead == 0)
                     return null; //something bad happened!
@@ -131,9 +132,20 @@ namespace PixelWorld.BinarySource.Decoders
 
                     ((SNA_128K)snapshot).TR_DOS = buffer[49182];
 
+                    // The tail holds one 16K block for each bank not already stored above. Banks 5 and 2
+                    // are always present there, plus whichever bank is paged into page 4 - so when that
+                    // bank is itself 2 or 5 only two distinct banks sit above and the tail holds six
+                    // blocks rather than five. That is why both 131103 and 147487 are accepted.
+                    // Cap the loop by the blocks actually present, otherwise a file whose size and
+                    // paging disagree copies past the end of the buffer.
+                    var tailBanks = (bytesToRead - 49183) / 16384;
+
                     var t = 0;
                     for (var f = 0; f < 8; f++)
                     {
+                        if (t >= tailBanks)
+                            break;
+
                         if (f == 5 || f == 2 || f == BankInPage4)
                             continue;
 
