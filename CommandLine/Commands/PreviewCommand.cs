@@ -23,7 +23,9 @@ public class PreviewCommand : Command<PreviewSettings>
             {
                 var targetName = Utils.MakeFileName(fileName, "webp", settings.OutputFolder);
                 Out.Write($"  Previewing {fileName} to {targetName}");
-                using var output = File.OpenWrite(targetName);
+                // File.Create truncates; File.OpenWrite would leave any trailing bytes from a longer
+                // previous file after the new image, corrupting the output on a re-run.
+                using var output = File.Create(targetName);
                 ImageFontFormatter.Write(sourceFont, output, ImageFontFormatter.WebpEncoder, settings.Transparent);
             }
 
@@ -31,7 +33,9 @@ public class PreviewCommand : Command<PreviewSettings>
             {
                 var targetName = Utils.MakeFileName(fileName, "png", settings.OutputFolder);
                 Out.Write($"  Previewing {fileName} to {targetName}");
-                using var output = File.OpenWrite(targetName);
+                // File.Create truncates; File.OpenWrite would leave any trailing bytes from a longer
+                // previous file after the new image, corrupting the output on a re-run.
+                using var output = File.Create(targetName);
                 ImageFontFormatter.Write(sourceFont, output, ImageFontFormatter.PngEncoder, settings.Transparent);
             }
         }
