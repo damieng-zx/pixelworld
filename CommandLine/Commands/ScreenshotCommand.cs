@@ -33,6 +33,17 @@ public class ScreenshotCommand : Command<ScreenshotSettings>
     private static Boolean WriteScreenToDisk(String fileName, ArraySegment<Byte> memory, ScreenshotSettings settings)
     {
         var address = settings.Address ?? (memory.Count == Spectrum.Ram48K ? 0 : Spectrum.ScreenStart);
+
+        // address is free-form from the command line and indexes the memory the decoder handed over,
+        // which need not be a full address space: a failed decode leaves the segment empty and a 48K
+        // dump is only 49152 bytes, so the screen window need not exist. Every format below reads
+        // exactly these 6912 bytes, so check it once here rather than letting the first one throw.
+        if (memory.Array is null || address < 0 || address + Spectrum.ScreenSize > memory.Count)
+        {
+            Out.Write($"  Skipping {fileName} at address {address} as it is outside the {memory.Count} byte memory");
+            return false;
+        }
+
         if (settings.Png || settings.Webp)
         {
             using var image = SpectrumDisplay.GetBitmap(memory.ToArray(), address, settings.Flashed);
@@ -54,7 +65,9 @@ public class ScreenshotCommand : Command<ScreenshotSettings>
     {
         var targetName = Utils.MakeFileName(sourceName, "scr", settings.OutputFolder);
         Out.Write($"  Screenshotting {sourceName} @ {address} to {targetName}");
-        var screenBuffer = memory.Array.AsSpan(address, Spectrum.ScreenSize).ToArray();
+        // Take the span from the segment rather than its array so that a segment which is a window into
+        // a larger buffer reads from the window, not from the start of the array.
+        var screenBuffer = memory.AsSpan(address, Spectrum.ScreenSize).ToArray();
         File.WriteAllBytes(targetName, screenBuffer);
     }
 
