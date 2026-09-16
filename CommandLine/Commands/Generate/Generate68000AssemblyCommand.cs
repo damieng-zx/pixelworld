@@ -16,7 +16,7 @@ public class Generate68000AssemblyCommand : Command<AssemblySettings>
         switch (settings.Base)
         {
             case NumberBase.Binary:
-                AssemblyFontFormatter.CreateDefines("68000", "DC.B ", "${0:x2}", files, settings.OutputFolder, settings.Credit);
+                AssemblyFontFormatter.CreateDefines("68000", "DC.B ", "%{0:b8}", files, settings.OutputFolder, settings.Credit);
                 break;
             case NumberBase.Hex:
                 AssemblyFontFormatter.CreateDefines("68000", "DC.B ", "${0:x2}", files, settings.OutputFolder, settings.Credit);
