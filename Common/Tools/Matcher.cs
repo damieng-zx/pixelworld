@@ -10,6 +10,11 @@ public static class Matcher
 {
     public static void Match(List<String> fileNames, String matchFile, String matchGlyphs)
     {
+        // An empty glyph list would satisfy the "all requested glyphs matched" test vacuously and
+        // report every file in the glob as a match, so refuse it up front.
+        if (matchGlyphs.Length == 0)
+            throw new ArgumentException("Specify at least one glyph to match on", nameof(matchGlyphs));
+
         Out.Write($"Reading match file {matchFile}");
         using var matchReader = new BinaryReader(File.OpenRead(matchFile));
         var matchFont = ByteFontFormatter.Create(matchReader, Path.GetFileNameWithoutExtension(matchFile), 0, Spectrum.UK);
