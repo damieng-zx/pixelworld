@@ -12,21 +12,27 @@ public static class GlyphShifter
 
         var data = new Boolean[width, height];
 
+        // Nothing can be placed in a zero-sized destination, and the wrap below would divide by zero.
+        if (width == 0 || height == 0) return new Glyph(width, height, data);
+
         for (var y = 0; y < source.Height; y++)
         {
+            // Clip against the destination, not the source, so newHeight is honoured.
             var ty = y + vertical;
-            if (wrap || ty >= 0 && ty < source.Height)
+            if (wrap)
+                ty = (ty % height + height) % height;   // % keeps the sign, so normalise for negative shifts
+            else if (ty < 0 || ty >= height)
+                continue;
+
+            for (var x = 0; x < source.Width; x++)
             {
-                ty %= source.Height;
-                for (var x = 0; x < source.Width; x++)
-                {
-                    var tx = x + horizontal;
-                    if (wrap || tx < width && tx >= 0)
-                    {
-                        tx %= width;
-                        data[tx, ty] = source.Data[x, y];
-                    }
-                }
+                var tx = x + horizontal;
+                if (wrap)
+                    tx = (tx % width + width) % width;
+                else if (tx < 0 || tx >= width)
+                    continue;
+
+                data[tx, ty] = source.Data[x, y];
             }
         }
 
