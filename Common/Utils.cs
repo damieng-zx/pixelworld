@@ -38,7 +38,12 @@ public static class Utils
     public static Int32 GetGlobSplitPoint(String pathGlob)
     {
         var doubleStar = pathGlob.IndexOf("**", StringComparison.Ordinal);
-        return doubleStar > -1 ? doubleStar : pathGlob.LastIndexOf('\\') + 1;
+        if (doubleStar > -1) return doubleStar;
+
+        // Consider both separators: only looking for '\' made an absolute POSIX path split at 0, which
+        // left the whole path as the glob and searched "." instead, silently matching nothing on
+        // Linux and macOS.
+        return Math.Max(pathGlob.LastIndexOf('\\'), pathGlob.LastIndexOf('/')) + 1;
     }
 
     public static Dictionary<Int32, Char> ToIndexedDictionary(this String sequence)
