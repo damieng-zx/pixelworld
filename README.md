@@ -79,6 +79,18 @@ This works in conjunction with [SpectrumDisplay.GetCandidates](https://github.co
 
 This finder looks for fonts by expecting certain pixel densities in relative to each other. For example ! should have less pixels than m. c should have less pixels than o etc.
 
+### [StructuralFinder](https://github.com/damieng/pixelworld/blob/main/Common/OffsetFinders/StructuralFinder.cs)
+
+This scores every offset by how the glyphs relate to each other, using [FontStructure](https://github.com/damieng/pixelworld/blob/main/Common/OffsetFinders/FontStructure.cs): bracket pairs such as ( and ) that are mirror images, letters such as P and R that share their top rows, symmetric capitals such as A, H and O, descenders on g j p q y, and a blank column or row shared by the letters. Symmetric glyphs where B, C or 2 belong, or a, c and o dropping below the baseline, count against an offset, which is what tells a correct reading from one a few characters off.
+
+It doesn't need a space, symbols or lowercase, so it also finds fonts that only define digits and capitals. The slots that belong to the font are worked out from which ones respect the capitals' blank columns, and the rest are left blank in the extracted font.
+
+### [CodeReferenceFinder](https://github.com/damieng/pixelworld/blob/main/Common/OffsetFinders/CodeReferenceFinder.cs)
+
+A game that prints text has to have its font address somewhere in its code. This looks for `LD (23606),rr` after `LD rr,nn` (setting CHARS even if it has since been changed), and for print routines that multiply the character code by 8 with three `ADD HL,HL` and then add a constant. The constant could be the address of space, of character 0, of 0 or of A, so each reading is scored and the best kept. Because the code backs up the address, a lower score is accepted than for a blind scan.
+
+Where finds overlap in memory only the best-scoring reading is kept, and copies of the ROM font are skipped. `hunt --known <folder>` skips fonts already present in a folder of .ch8 files.
+
 ## Setup
 
 The project should compile with VS 2019 or later.

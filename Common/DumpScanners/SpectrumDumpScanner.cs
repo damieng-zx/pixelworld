@@ -1,67 +1,165 @@
 ﻿using System;
 using PixelWorld.Display;
-using PixelWorld.Formatters;
 using PixelWorld.Machines;
 using PixelWorld.OffsetFinders;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Font = PixelWorld.Fonts.Font;
 
 namespace PixelWorld.DumpScanners;
 
+/// <summary>A font found in a memory dump.</summary>
+/// <param name="Offset">Where the font's space is, or would be if the font started there.</param>
+/// <param name="Data">The 96 glyphs from space to ©, with any slot outside <paramref name="Range"/> blank.</param>
+/// <param name="Methods">The finders that suggested this offset.</param>
+/// <param name="RomGlyphsChanged">How many of the printable glyphs differ from the ROM font.</param>
+/// <param name="Legacy">Accepted by the original rules (a complete font starting at a blank space).</param>
+public sealed record FoundFont(
+    Int32 Offset,
+    Byte[] Data,
+    CharRange Range,
+    FontScore Score,
+    IReadOnlyList<String> Methods,
+    Int32 RomGlyphsChanged,
+    Boolean Legacy)
+{
+    /// <summary>The bytes of memory the font's present glyphs occupy.</summary>
+    public Int32 Start => Offset + (Range.First - 32) * 8;
+    public Int32 End => Offset + (Range.Last - 31) * 8;
+    public Boolean Overlaps(FoundFont other) => Start < other.End && other.Start < End;
+}
+
 public static class SpectrumDumpScanner
 {
-    public static List<Font> Read(BinaryReader reader, String name)
+    private const String CharsMethod = "RST 16/CHARS";
+    private const String RomGlyphsMethod = "ROM Glyphs";
+    private const String ScreenMethod = "SCREEN$ Tiles";
+    private const String HeuristicsMethod = "Heuristics";
+    private const String CodeMethod = "Code refs";
+    private const String StructureMethod = "Structure";
+
+    /// <summary>Fonts with this few glyphs changed from the ROM are reported as ROM-derived.</summary>
+    public const Int32 RomDerivedThreshold = 4;
+
+    public static List<FoundFont> Read(BinaryReader reader)
     {
         var buffer = reader.ReadBytes(1024 * 2048); // 2MB is enough for any Speccy
-
-        var offsets = GetOffsets(buffer);
-
-        var fonts = new List<Font>();
-        foreach (var offset in offsets)
-            if (!IsRomFont(buffer, offset) && buffer.IsEmpty(offset) && !IsMissingTooManyGlyphs(buffer, offset))
-                fonts.Add(ByteFontFormatter.Create(reader, $"{name}#{offset}", offset, Spectrum.UK));
-
-        return fonts;
+        return Scan(buffer);
     }
 
-    private static IEnumerable<Int32> GetOffsets(Byte[] buffer)
+    public static List<FoundFont> Scan(Byte[] buffer)
     {
-        // 128K dumps keep the 64K address space at the start, so the screen is at 16384 in those too.
+        var suggested = GetOffsets(buffer);
+
+        var accepted = new List<FoundFont>();
+        foreach (var (offset, methods) in suggested)
+        {
+            var found = Accept(buffer, offset, methods);
+            if (found is not null)
+                accepted.Add(found);
+        }
+
+        return Merge(accepted);
+    }
+
+    /// <summary>
+    /// The older finders only ever find complete fonts starting at a blank space, so they keep their
+    /// original test. The newer finders are judged on structure score and may find partial fonts.
+    /// </summary>
+    private static FoundFont? Accept(Byte[] buffer, Int32 offset, List<String> methods)
+    {
+        var score = FontStructure.Score(buffer, offset);
+        var legacy = methods.Any(m => m is not (CodeMethod or StructureMethod));
+
+        CharRange range;
+        var acceptedAsLegacy = false;
+        if (legacy && offset >= 0 && offset + Spectrum.FontSize <= buffer.Length
+            && buffer.IsEmpty(offset) && !IsMissingTooManyGlyphs(buffer, offset))
+        {
+            range = CharRange.Full;
+            acceptedAsLegacy = true;
+        }
+        else
+        {
+            var minScore = methods.Contains(CodeMethod) ? CodeReferenceFinder.MinScore : StructuralFinder.MinScore;
+            if (score.Total < minScore || score.DistinctLetters < StructuralFinder.MinDistinctLetters) return null;
+            range = FontStructure.DetectRange(buffer, offset);
+        }
+
+        var data = FontStructure.Extract(buffer, offset, range);
+        var romChanged = CountRomGlyphsChanged(data);
+        if (romChanged == 0) return null;
+
+        return new FoundFont(offset, data, range, score, methods, romChanged, acceptedAsLegacy);
+    }
+
+    /// <summary>
+    /// Two fonts cannot occupy the same memory, so where finds overlap only one reading is right. Fonts
+    /// accepted by the original rules are all kept, as before; a find from the newer finders is kept only
+    /// if it overlaps none of those and no better-scoring new find. Then drop any font identical to one
+    /// already kept from this dump.
+    /// </summary>
+    private static List<FoundFont> Merge(List<FoundFont> fonts)
+    {
+        var kept = fonts.Where(f => f.Legacy).ToList();
+
+        foreach (var font in fonts.Where(f => !f.Legacy)
+                     .OrderByDescending(f => f.Score.Total).ThenBy(f => f.Score.EdgeInk).ThenBy(f => f.Offset))
+        {
+            var overlapped = kept.FindIndex(font.Overlaps);
+            if (overlapped < 0)
+                kept.Add(font);
+            else
+                kept[overlapped] = kept[overlapped] with { Methods = [..kept[overlapped].Methods.Union(font.Methods)] };
+        }
+
+        // Where the same font is in memory twice, keep the copy the original rules found so file names
+        // stay the same as earlier hunts.
+        var seen = new HashSet<String>();
+        return kept.OrderByDescending(f => f.Legacy).ThenBy(f => f.Offset)
+            .Where(f => seen.Add(Convert.ToBase64String(f.Data)))
+            .OrderBy(f => f.Offset)
+            .ToList();
+    }
+
+    private static List<(Int32 Offset, List<String> Methods)> GetOffsets(Byte[] buffer)
+    {
         var address = buffer.Length >= Spectrum.AddressSpace ? Spectrum.ScreenStart : 0;
         var candidates = SpectrumDisplay.GetCandidates(buffer, address);
 
-        var rst = EnvironmentGuidedFinder.FindOffsets(buffer);
-        var rom = KnownCharPatternFinder.FindOffsets(buffer, rarelyChangedRomChars);
-        var scr = CandidatesInWindowFinder.FindOffsets(buffer, candidates);
-        var heu = GeneralHeuristicFinder.FindOffsets(buffer);
+        var finders = new (String Method, List<Int32> Offsets)[]
+        {
+            (CharsMethod, EnvironmentGuidedFinder.FindOffsets(buffer)),
+            (RomGlyphsMethod, KnownCharPatternFinder.FindOffsets(buffer, rarelyChangedRomChars)),
+            (ScreenMethod, CandidatesInWindowFinder.FindOffsets(buffer, candidates)),
+            (HeuristicsMethod, GeneralHeuristicFinder.FindOffsets(buffer)),
+            (CodeMethod, CodeReferenceFinder.FindOffsets(buffer)),
+            (StructureMethod, StructuralFinder.FindOffsets(buffer))
+        };
 
-        var offsets = new List<Int32>();
-        offsets.AddRange(rst);
-        offsets.AddRange(rom);
-        offsets.AddRange(scr);
-        offsets.AddRange(heu);
+        var byOffset = new SortedDictionary<Int32, List<String>>();
+        foreach (var (method, offsets) in finders)
+        foreach (var offset in offsets)
+        {
+            if (!byOffset.TryGetValue(offset, out var methods))
+                byOffset[offset] = methods = [];
+            methods.Add(method);
+        }
 
-        var dupes = new HashSet<Int32>(offsets
-            .GroupBy(o => o)
-            .Where(o => o.Count() > 1)
-            .Select(g => g.Key));
+        // Code references suggest many readings of every address, nearly all wrong; only report those
+        // that went on to be confirmed.
+        foreach (var (method, offsets) in finders.Where(f => f.Method != CodeMethod))
+            OutFinderDetail(offsets, method, byOffset);
 
-        OutFinderDetail(rst, "RST 16/CHARS", dupes);
-        OutFinderDetail(rom, "ROM Glyphs", dupes);
-        OutFinderDetail(scr, "SCREEN$ Tiles", dupes);
-        OutFinderDetail(heu, "Heuristics", dupes);
-
-        return new HashSet<Int32>(offsets);
+        return byOffset.Select(kv => (kv.Key, kv.Value)).ToList();
     }
 
-    public static void OutFinderDetail(List<Int32> offsets, String method, HashSet<Int32> dupes)
+    private static void OutFinderDetail(List<Int32> offsets, String method, SortedDictionary<Int32, List<String>> byOffset)
     {
         if (offsets.Count <= 0) return;
 
-        var uniques = offsets.Count(o => !dupes.Contains(o));
-        Out.Write($"  {method} found offsets ({uniques} uniques) {string.Join(", ", offsets)}");
+        var uniques = offsets.Count(o => byOffset[o].Count == 1);
+        Out.Write($"  {method} found offsets ({uniques} uniques) {String.Join(", ", offsets)}");
     }
 
     public static Boolean IsMissingTooManyGlyphs(Byte[] buffer, Int32 offset)
@@ -71,9 +169,19 @@ public static class SpectrumDumpScanner
 
     public static Boolean IsRomFont(Byte[] buffer, Int32 offset)
     {
-        // Compared byte for byte: the SHA-384 this used to check matched no copy of the ROM font.
         return offset >= 0 && offset + Spectrum.FontSize <= buffer.Length &&
                buffer.AsSpan(offset, Spectrum.FontSize).SequenceEqual(Spectrum.RomFont);
+    }
+
+    /// <summary>How many glyphs from ! to ~ differ from the ROM font; 0 means it is a copy of the ROM font.</summary>
+    public static Int32 CountRomGlyphsChanged(Byte[] font)
+    {
+        var rom = Spectrum.RomFont;
+        var changed = 0;
+        for (var c = 1; c < 95; c++)
+            if (!font.AsSpan(c * 8, 8).SequenceEqual(rom.Slice(c * 8, 8)))
+                changed++;
+        return changed;
     }
 
     private static readonly KnownCharPattern[] rarelyChangedRomChars =
