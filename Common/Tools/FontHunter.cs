@@ -52,7 +52,8 @@ public static class FontHunter
         var fontIndex = 0;
         foreach (var font in SpectrumDumpScanner.Read(reader, Path.GetFileNameWithoutExtension(fileName)))
         {
-            var newFileName = Utils.MakeFileName(font.Name, "ch8", outputFolder);
+            // Not Utils.MakeFileName: ChangeExtension would cut names containing a dot, such as "(U.S. Gold)".
+            var newFileName = Path.Combine(outputFolder, $"{font.Name}.ch8");
             fontIndex++;
             Out.Write($"  Creating byte font {newFileName}");
             // ByteFontFormatter.Write leaves the stream open, so it has to be disposed here or every

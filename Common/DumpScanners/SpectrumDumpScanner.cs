@@ -6,7 +6,6 @@ using PixelWorld.OffsetFinders;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using Font = PixelWorld.Fonts.Font;
 
 namespace PixelWorld.DumpScanners;
@@ -29,7 +28,8 @@ public static class SpectrumDumpScanner
 
     private static IEnumerable<Int32> GetOffsets(Byte[] buffer)
     {
-        var address = buffer.Length == Spectrum.AddressSpace ? Spectrum.ScreenStart : 0;
+        // 128K dumps keep the 64K address space at the start, so the screen is at 16384 in those too.
+        var address = buffer.Length >= Spectrum.AddressSpace ? Spectrum.ScreenStart : 0;
         var candidates = SpectrumDisplay.GetCandidates(buffer, address);
 
         var rst = EnvironmentGuidedFinder.FindOffsets(buffer);
@@ -71,9 +71,9 @@ public static class SpectrumDumpScanner
 
     public static Boolean IsRomFont(Byte[] buffer, Int32 offset)
     {
-        var sha1 = SHA384.Create().ComputeHash(buffer, offset, Spectrum.FontSize);
-        return sha1.ToHex() ==
-               "7fa0e307a6e78cf198c3a480a18437dcbecae485c22634cea69cdea3240e7079fe6bedc3c35a76047fb244b4fa15aa35";
+        // Compared byte for byte: the SHA-384 this used to check matched no copy of the ROM font.
+        return offset >= 0 && offset + Spectrum.FontSize <= buffer.Length &&
+               buffer.AsSpan(offset, Spectrum.FontSize).SequenceEqual(Spectrum.RomFont);
     }
 
     private static readonly KnownCharPattern[] rarelyChangedRomChars =
