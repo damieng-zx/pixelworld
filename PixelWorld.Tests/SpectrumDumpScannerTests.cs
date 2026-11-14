@@ -75,4 +75,41 @@ public class SpectrumDumpScannerTests
 
         Assert.Equal(new CharRange('0', 'Z'), found.Range);
     }
+
+    private static FoundFont Found(int offset, int total, bool legacy, params FinderMethod[] methods) =>
+        new(offset, Enumerable.Repeat((byte)offset, Spectrum.FontSize).ToArray(), CharRange.Full,
+            new FontScore(Mirror: total, 0, 0, 0, 0, 26, 0, 0, CharRange.Full), methods, 10, legacy);
+
+    [Fact]
+    public void Merge_RealFontReplacesOverlappingGarbageFromTheOriginalFinders()
+    {
+        var garbage = Found(40000, 0, true, FinderMethod.ScreenTiles);
+        var real = Found(40100, 12, false, FinderMethod.Structure);
+
+        var kept = SpectrumDumpScanner.Merge([garbage, real]);
+
+        Assert.Equal([40100], kept.Select(f => f.Offset));
+    }
+
+    [Theory]
+    [InlineData(FinderMethod.RomGlyphs)]
+    [InlineData(FinderMethod.Chars)]
+    public void Merge_OriginalFindWithOtherEvidenceIsNotReplaced(FinderMethod evidence)
+    {
+        var lowScoring = Found(40000, 0, true, FinderMethod.ScreenTiles, evidence);
+        var real = Found(40100, 12, false, FinderMethod.Structure);
+
+        var kept = SpectrumDumpScanner.Merge([lowScoring, real]);
+
+        Assert.Equal([40000], kept.Select(f => f.Offset));
+    }
+
+    [Fact]
+    public void Merge_GarbageIsKeptWhenNothingOverlapsIt()
+    {
+        var garbage = Found(40000, 0, true, FinderMethod.ScreenTiles);
+        var real = Found(50000, 12, false, FinderMethod.Structure);
+
+        Assert.Equal([40000, 50000], SpectrumDumpScanner.Merge([garbage, real]).Select(f => f.Offset));
+    }
 }

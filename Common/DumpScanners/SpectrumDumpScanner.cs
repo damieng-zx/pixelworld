@@ -36,6 +36,13 @@ public static class SpectrumDumpScanner
     /// <summary>Fonts with this few glyphs changed from the ROM are reported as ROM-derived.</summary>
     public const Int32 RomDerivedThreshold = 4;
 
+    /// <summary>
+    /// A find from the original finders scoring this low or lower is graphics that happened to start with a
+    /// blank tile, unless something besides how it looks (CHARS, a code reference or the ROM's glyphs)
+    /// points to it; a real font overlapping it replaces it.
+    /// </summary>
+    private const Int32 MaxGarbageScore = 3;
+
     public static List<FoundFont> Scan(Byte[] buffer)
     {
         var suggested = GetOffsets(buffer);
@@ -89,18 +96,20 @@ public static class SpectrumDumpScanner
     /// accepted by the original rules are all kept, as before; a find from the newer finders is kept only
     /// if it overlaps none of those and no better-scoring new find. A reading less than one glyph away from
     /// another is the same font read a row or two off, which scores about the same, so the one the code
-    /// points at wins. Then drop any font identical to one already kept from this dump.
+    /// points at wins. A new find also replaces the garbage original finds it overlaps
+    /// (<see cref="MaxGarbageScore"/>). Then drop any font identical to one already kept from this dump.
     /// </summary>
-    private static List<FoundFont> Merge(List<FoundFont> fonts)
+    public static List<FoundFont> Merge(List<FoundFont> fonts)
     {
         var kept = fonts.Where(f => f.Legacy).ToList();
 
         foreach (var font in fonts.Where(f => !f.Legacy)
                      .OrderByDescending(f => f.Score.Total).ThenBy(f => f.Score.EdgeInk).ThenBy(f => f.Offset))
         {
-            var overlapped = kept.FindIndex(font.Overlaps);
+            var overlapped = kept.FindIndex(k => !IsGarbage(k) && font.Overlaps(k));
             if (overlapped < 0)
             {
+                kept.RemoveAll(k => IsGarbage(k) && font.Overlaps(k));
                 kept.Add(font);
                 continue;
             }
@@ -121,6 +130,10 @@ public static class SpectrumDumpScanner
             .OrderBy(f => f.Offset)
             .ToList();
     }
+
+    private static Boolean IsGarbage(FoundFont font) =>
+        font.Legacy && font.Score.Total <= MaxGarbageScore
+                    && !font.Methods.Any(m => m is FinderMethod.Chars or FinderMethod.RomGlyphs or FinderMethod.CodeRefs);
 
     private static List<(Int32 Offset, List<FinderMethod> Methods)> GetOffsets(Byte[] buffer)
     {
