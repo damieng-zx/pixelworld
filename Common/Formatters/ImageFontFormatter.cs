@@ -42,4 +42,9 @@ public static class ImageFontFormatter
     {
         Png.Write(font.CreateImage(3, transparent), output);
     }
+
+    public static void WriteWebp(Font font, Stream output, Boolean transparent)
+    {
+        Webp.Write(font.CreateImage(3, transparent), output);
+    }
 }

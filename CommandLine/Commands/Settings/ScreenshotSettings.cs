@@ -14,6 +14,10 @@ public class ScreenshotSettings : RequiredSettings
     [Description("Write a .png version of the screenshot.")]
     public Boolean Png { get; set; }
 
+    [CommandOption("--webp")]
+    [Description("Write a lossless .webp version of the screenshot.")]
+    public Boolean Webp { get; set; }
+
     [CommandOption("--scr")]
     [Description("Write a .scr version of the screenshot (default).")]
     public Boolean Scr { get; set; }

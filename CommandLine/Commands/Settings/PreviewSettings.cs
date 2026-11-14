@@ -7,8 +7,12 @@ namespace CommandLine.Commands.Settings;
 public class PreviewSettings : RequiredSettings
 {
     [CommandOption("--png")]
-    [Description("Write a .png preview (always done, so this changes nothing).")]
+    [Description("Write a .png preview (the default).")]
     public Boolean Png { get; set; }
+
+    [CommandOption("--webp")]
+    [Description("Write a lossless .webp preview.")]
+    public Boolean Webp { get; set; }
 
     [CommandOption("--transparent")]
     [DefaultValue(true)]

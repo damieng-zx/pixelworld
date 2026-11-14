@@ -45,14 +45,18 @@ public class ScreenshotCommand : Command<ScreenshotSettings>
             return false;
         }
 
-        if (settings.Png)
-            WritePng(fileName, SpectrumDisplay.GetBitmap(memory.ToArray(), address, settings.Flashed), settings, address);
+        if (settings.Png || settings.Webp)
+        {
+            var image = SpectrumDisplay.GetBitmap(memory.ToArray(), address, settings.Flashed);
+            if (settings.Png) WritePng(fileName, image, settings, address);
+            if (settings.Webp) WriteWebp(fileName, image, settings, address);
+        }
 
         if (settings.Gif)
             WriteGif(fileName, memory, settings, address);
 
         // Write SCR if specified OR if nothing specified (so it is the default)
-        if (settings.Scr || settings is {Png: false, Gif: false})
+        if (settings.Scr || settings is {Png: false, Gif: false, Webp: false})
             WriteScr(fileName, memory, settings, address);
 
         return true;
@@ -84,5 +88,13 @@ public class ScreenshotCommand : Command<ScreenshotSettings>
         Out.Write($"  Screenshotting {sourceName} @ {address} to {targetName}");
         using var output = File.Create(targetName);
         Png.Write(image, output);
+    }
+
+    private static void WriteWebp(String sourceName, Bitmap image, ScreenshotSettings settings, Int32 address)
+    {
+        var targetName = Utils.MakeFileName(sourceName, "webp", settings.OutputFolder);
+        Out.Write($"  Screenshotting {sourceName} @ {address} to {targetName}");
+        using var output = File.Create(targetName);
+        Webp.Write(image, output);
     }
 }

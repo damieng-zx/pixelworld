@@ -12,14 +12,14 @@ It also contains bulk-ripping `dump` and `hunt` commands for obtaining ZX Spectr
 
 - `dump` to RAM-dump snapshot files (currently supports `.z80` and `.sna` and recurses through `.zip` archives)
 - `hunt` to look through RAM dumps for possible bitmap fonts (currently supports only ZX Spectrum fonts); `--known <folder>` skips fonts already in a folder of `.ch8` files
-- `screenshot` to create a screenshots from RAM-dumps or snapshot files (in PNG, SCR or animated GIF format)
+- `screenshot` to create a screenshots from RAM-dumps or snapshot files (in PNG, lossless WebP, SCR or animated GIF format)
 - `extracttiles` to create a files with unique 8x8 character tiles found on the screen in RAM-dumps or snapshot files
 
 ### Conversion
 
 The following commands work with ZX Spectrum RAW 768 byte/.ch8 files:
 
-- `preview` to create a `.png` preview file
+- `preview` to create a `.png` or lossless `.webp` preview file
 - `pngtozx` to convert a `.png` back to a ZX Spectrum `.ch8`
 - `c64tozx` to create a ZX Spectrum `.ch8` file from a C64 binary file
 
