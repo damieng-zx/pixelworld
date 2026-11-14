@@ -56,8 +56,9 @@ public static class SpectrumDumpScanner
     }
 
     /// <summary>
-    /// The older finders only ever find complete fonts starting at a blank space, so they keep their
-    /// original test. The newer finders are judged on structure score and may find partial fonts.
+    /// An offset from the older finders that passes their original test (a complete font starting at a
+    /// blank space) is accepted as a full font, as before. Anything else, including an older finder's
+    /// offset that fails that test, is accepted only on its structure score, and may be a partial font.
     /// </summary>
     private static FoundFont? Accept(Byte[] buffer, Int32 offset, List<String> methods)
     {
