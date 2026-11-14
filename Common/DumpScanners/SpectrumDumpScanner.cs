@@ -70,7 +70,7 @@ public static class SpectrumDumpScanner
         {
             var minScore = methods.Contains(FinderMethod.CodeRefs) ? CodeReferenceFinder.MinScore : StructuralFinder.MinScore;
             if (score.Total < minScore || score.DistinctLetters < StructuralFinder.MinDistinctLetters) return null;
-            range = FontStructure.DetectRange(buffer, offset);
+            range = score.Range;
         }
 
         var data = FontStructure.Extract(buffer, offset, range);

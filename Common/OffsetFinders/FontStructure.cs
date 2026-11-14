@@ -26,6 +26,7 @@ namespace PixelWorld.OffsetFinders;
 /// font a byte or two off its true start moves every row up or down without spoiling any of the other
 /// measures; most fonts keep an empty row above and below the capitals, so the lowest wins a tie.
 /// </param>
+/// <param name="Range">The slots that were judged: those <see cref="FontStructure.DetectRange"/> found present.</param>
 public readonly record struct FontScore(
     Int32 Mirror,
     Int32 Tops,
@@ -34,7 +35,8 @@ public readonly record struct FontScore(
     Int32 Gutter,
     Int32 DistinctLetters,
     Int32 Penalty,
-    Int32 EdgeInk)
+    Int32 EdgeInk,
+    CharRange Range)
 {
     public Int32 Total => Mirror + Tops + Symmetric + Descenders + Gutter - Penalty;
 
@@ -186,9 +188,11 @@ public static class FontStructure
 
     public static FontScore Score(Byte[] buffer, Int32 fontBase)
     {
+        var gutter = LearnGutter(buffer, fontBase);
+
         // Only judge the slots that belong to the font: the bytes after a capitals-only font are not
         // lowercase letters and would otherwise count against it.
-        var range = DetectRange(buffer, fontBase);
+        var range = DetectRange(buffer, fontBase, gutter.ColumnMask);
         Boolean In(Char c) => c >= range.First && c <= range.Last;
 
         var mirror = 0;
@@ -226,7 +230,7 @@ public static class FontStructure
         var (descenders, wrongDescenders) = range.Last >= 'z' ? CountDescenders(buffer, fontBase, range.First) : (0, 0);
         penalty += wrongDescenders;
 
-        var gutter = GutterScore(buffer, fontBase);
+        var gutterScore = (gutter.ColumnMask != 0 ? 1 : 0) + (gutter.TopRow || gutter.BottomRow ? 1 : 0);
         var distinct = CountDistinctLetters(buffer, fontBase);
 
         var edgeInk = 0;
@@ -238,7 +242,7 @@ public static class FontStructure
             if (buffer[at + GlyphSize - 1] != 0) edgeInk++;
         }
 
-        return new FontScore(mirror, tops, symmetric, descenders, gutter, distinct, penalty, edgeInk);
+        return new FontScore(mirror, tops, symmetric, descenders, gutterScore, distinct, penalty, edgeInk, range);
     }
 
     /// <summary>
@@ -305,12 +309,6 @@ public static class FontStructure
         return (mask, Mostly(top), Mostly(bottom));
     }
 
-    private static Int32 GutterScore(Byte[] buffer, Int32 fontBase)
-    {
-        var (mask, top, bottom) = LearnGutter(buffer, fontBase);
-        return (mask != 0 ? 1 : 0) + (top || bottom ? 1 : 0);
-    }
-
     private static Int32 CountDistinctLetters(Byte[] buffer, Int32 fontBase)
     {
         var seen = new HashSet<UInt64>();
@@ -330,10 +328,11 @@ public static class FontStructure
     /// blank columns the capitals share; the font starts at the earliest of space, !, 0 or A from which
     /// nearly every slot up to Z belongs, and keeps lowercase only when that block belongs too.
     /// </summary>
-    public static CharRange DetectRange(Byte[] buffer, Int32 fontBase)
-    {
-        var (mask, _, _) = LearnGutter(buffer, fontBase);
+    public static CharRange DetectRange(Byte[] buffer, Int32 fontBase) =>
+        DetectRange(buffer, fontBase, LearnGutter(buffer, fontBase).ColumnMask);
 
+    private static CharRange DetectRange(Byte[] buffer, Int32 fontBase, Byte mask)
+    {
         Boolean Fits(Int32 c)
         {
             var at = GlyphAt(fontBase, c);
