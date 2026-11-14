@@ -11,7 +11,7 @@ It also contains bulk-ripping `dump` and `hunt` commands for obtaining ZX Spectr
 ### Extraction
 
 - `dump` to RAM-dump snapshot files (currently supports `.z80` and `.sna` and recurses through `.zip` archives)
-- `hunt` to look through RAM dumps for possible bitmap fonts (currently supports only ZX Spectrum fonts)
+- `hunt` to look through RAM dumps for possible bitmap fonts (currently supports only ZX Spectrum fonts); `--known <folder>` skips fonts already in a folder of `.ch8` files
 - `screenshot` to create a screenshots from RAM-dumps or snapshot files (in PNG, SCR or animated GIF format)
 - `extracttiles` to create a files with unique 8x8 character tiles found on the screen in RAM-dumps or snapshot files
 
@@ -89,7 +89,22 @@ It doesn't need a space, symbols or lowercase, so it also finds fonts that only 
 
 A game that prints text has to have its font address somewhere in its code. This looks for `LD (23606),rr` after `LD rr,nn` (setting CHARS even if it has since been changed), and for print routines that multiply the character code by 8 with three `ADD HL,HL` and then add a constant. The constant could be the address of space, of character 0, of 0 or of A, so each reading is scored and the best kept. Because the code backs up the address, a lower score is accepted than for a blind scan.
 
-Where finds overlap in memory only the best-scoring reading is kept, and copies of the ROM font are skipped. `hunt --known <folder>` skips fonts already present in a folder of .ch8 files.
+### How finds are combined
+
+Several finders often suggest the same font, and the newer ones suggest many readings of it a few bytes or characters apart. Finds from the original four finders are kept as before. A find from StructuralFinder or CodeReferenceFinder is kept only if it doesn't overlap one of those or a better-scoring new find, since two fonts can't occupy the same memory. Copies of the ROM font are skipped, and where the same font is in a dump twice only one copy is kept.
+
+`hunt --known <folder>` also skips any font identical to one already in a folder of `.ch8` files, and reports how many it skipped.
+
+### Hunt output
+
+Each font is written as `<dump name>#<offset>.ch8`, where the offset is where the font's space is in the dump, or would be if the font started there. A partial font keeps the characters it defines in their usual places and leaves the rest blank, so it is still a 768-byte font.
+
+The log line for each font explains why it was kept:
+
+- `score` is the StructuralFinder score with its parts, which shows how font-like it is
+- `via` lists the finders that suggested it
+- `partial '0'..'Z'` gives the characters present when the font doesn't define them all
+- `ROM-derived (n glyphs changed)` marks fonts that differ from the ROM font in only a few glyphs
 
 ## Setup
 
