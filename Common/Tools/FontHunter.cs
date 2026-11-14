@@ -85,7 +85,7 @@ public static class FontHunter
 
     private static String Describe(FoundFont found)
     {
-        var parts = new List<String> { found.Score.ToString(), $"via {String.Join(", ", found.Methods)}" };
+        var parts = new List<String> { found.Score.ToString(), $"via {String.Join(", ", found.Methods.Select(m => m.DisplayName()))}" };
         if (!found.Range.IsFull)
             parts.Add($"partial {found.Range}");
         if (found.RomGlyphsChanged <= SpectrumDumpScanner.RomDerivedThreshold)

@@ -43,7 +43,7 @@ public class SpectrumDumpScannerTests
 
         Assert.DoesNotContain(fonts, f => f.Offset == 30000);
         var found = Assert.Single(fonts, f => f.Offset == 50000);
-        Assert.Contains("Code refs", found.Methods);
+        Assert.Contains(FinderMethod.CodeRefs, found.Methods);
         Assert.Equal(FontStructureTests.TestFont(), found.Data);
     }
 

@@ -18,7 +18,7 @@ public sealed record FoundFont(
     Byte[] Data,
     CharRange Range,
     FontScore Score,
-    IReadOnlyList<String> Methods,
+    IReadOnlyList<FinderMethod> Methods,
     Int32 RomGlyphsChanged,
     Boolean Legacy)
 {
@@ -30,13 +30,6 @@ public sealed record FoundFont(
 
 public static class SpectrumDumpScanner
 {
-    private const String CharsMethod = "RST 16/CHARS";
-    private const String RomGlyphsMethod = "ROM Glyphs";
-    private const String ScreenMethod = "SCREEN$ Tiles";
-    private const String HeuristicsMethod = "Heuristics";
-    private const String CodeMethod = "Code refs";
-    private const String StructureMethod = "Structure";
-
     /// <summary>Fonts with this few glyphs changed from the ROM are reported as ROM-derived.</summary>
     public const Int32 RomDerivedThreshold = 4;
 
@@ -60,10 +53,10 @@ public static class SpectrumDumpScanner
     /// blank space) is accepted as a full font, as before. Anything else, including an older finder's
     /// offset that fails that test, is accepted only on its structure score, and may be a partial font.
     /// </summary>
-    private static FoundFont? Accept(Byte[] buffer, Int32 offset, List<String> methods)
+    private static FoundFont? Accept(Byte[] buffer, Int32 offset, List<FinderMethod> methods)
     {
         var score = FontStructure.Score(buffer, offset);
-        var legacy = methods.Any(m => m is not (CodeMethod or StructureMethod));
+        var legacy = methods.Any(m => m.IsOriginal());
 
         CharRange range;
         var acceptedAsLegacy = false;
@@ -75,7 +68,7 @@ public static class SpectrumDumpScanner
         }
         else
         {
-            var minScore = methods.Contains(CodeMethod) ? CodeReferenceFinder.MinScore : StructuralFinder.MinScore;
+            var minScore = methods.Contains(FinderMethod.CodeRefs) ? CodeReferenceFinder.MinScore : StructuralFinder.MinScore;
             if (score.Total < minScore || score.DistinctLetters < StructuralFinder.MinDistinctLetters) return null;
             range = FontStructure.DetectRange(buffer, offset);
         }
@@ -116,22 +109,22 @@ public static class SpectrumDumpScanner
             .ToList();
     }
 
-    private static List<(Int32 Offset, List<String> Methods)> GetOffsets(Byte[] buffer)
+    private static List<(Int32 Offset, List<FinderMethod> Methods)> GetOffsets(Byte[] buffer)
     {
         var address = buffer.Length >= Spectrum.AddressSpace ? Spectrum.ScreenStart : 0;
         var candidates = SpectrumDisplay.GetCandidates(buffer, address);
 
-        var finders = new (String Method, List<Int32> Offsets)[]
+        var finders = new (FinderMethod Method, List<Int32> Offsets)[]
         {
-            (CharsMethod, EnvironmentGuidedFinder.FindOffsets(buffer)),
-            (RomGlyphsMethod, KnownCharPatternFinder.FindOffsets(buffer, rarelyChangedRomChars)),
-            (ScreenMethod, CandidatesInWindowFinder.FindOffsets(buffer, candidates)),
-            (HeuristicsMethod, GeneralHeuristicFinder.FindOffsets(buffer)),
-            (CodeMethod, CodeReferenceFinder.FindOffsets(buffer)),
-            (StructureMethod, StructuralFinder.FindOffsets(buffer))
+            (FinderMethod.Chars, EnvironmentGuidedFinder.FindOffsets(buffer)),
+            (FinderMethod.RomGlyphs, KnownCharPatternFinder.FindOffsets(buffer, rarelyChangedRomChars)),
+            (FinderMethod.ScreenTiles, CandidatesInWindowFinder.FindOffsets(buffer, candidates)),
+            (FinderMethod.Heuristics, GeneralHeuristicFinder.FindOffsets(buffer)),
+            (FinderMethod.CodeRefs, CodeReferenceFinder.FindOffsets(buffer)),
+            (FinderMethod.Structure, StructuralFinder.FindOffsets(buffer))
         };
 
-        var byOffset = new SortedDictionary<Int32, List<String>>();
+        var byOffset = new SortedDictionary<Int32, List<FinderMethod>>();
         foreach (var (method, offsets) in finders)
         foreach (var offset in offsets)
         {
@@ -142,18 +135,18 @@ public static class SpectrumDumpScanner
 
         // Code references suggest many readings of every address, nearly all wrong; only report those
         // that went on to be confirmed.
-        foreach (var (method, offsets) in finders.Where(f => f.Method != CodeMethod))
+        foreach (var (method, offsets) in finders.Where(f => f.Method != FinderMethod.CodeRefs))
             OutFinderDetail(offsets, method, byOffset);
 
         return byOffset.Select(kv => (kv.Key, kv.Value)).ToList();
     }
 
-    private static void OutFinderDetail(List<Int32> offsets, String method, SortedDictionary<Int32, List<String>> byOffset)
+    private static void OutFinderDetail(List<Int32> offsets, FinderMethod method, SortedDictionary<Int32, List<FinderMethod>> byOffset)
     {
         if (offsets.Count <= 0) return;
 
         var uniques = offsets.Count(o => byOffset[o].Count == 1);
-        Out.Write($"  {method} found offsets ({uniques} uniques) {String.Join(", ", offsets)}");
+        Out.Write($"  {method.DisplayName()} found offsets ({uniques} uniques) {String.Join(", ", offsets)}");
     }
 
     public static Boolean IsMissingTooManyGlyphs(Byte[] buffer, Int32 offset)
