@@ -80,7 +80,9 @@ public static class SpectrumDumpScanner
         {
             var backedByCode = methods.Contains(FinderMethod.CodeRefs)
                                && score.Total >= CodeReferenceFinder.MinScore && score.DistinctLetters >= StructuralFinder.MinDistinctLetters;
-            if (!backedByCode && !StructuralFinder.Accepts(score)) return null;
+            // The alphabet profile finder checked for itself that the capitals are there.
+            var capitalsFound = methods.Contains(FinderMethod.AlphabetProfile);
+            if (!backedByCode && !capitalsFound && !StructuralFinder.Accepts(score)) return null;
             range = score.Range;
         }
 
@@ -147,7 +149,8 @@ public static class SpectrumDumpScanner
             (FinderMethod.ScreenTiles, CandidatesInWindowFinder.FindOffsets(buffer, candidates)),
             (FinderMethod.Heuristics, GeneralHeuristicFinder.FindOffsets(buffer)),
             (FinderMethod.CodeRefs, CodeReferenceFinder.FindOffsets(buffer)),
-            (FinderMethod.Structure, StructuralFinder.FindOffsets(buffer))
+            (FinderMethod.Structure, StructuralFinder.FindOffsets(buffer)),
+            (FinderMethod.AlphabetProfile, AlphabetProfileFinder.FindOffsets(buffer))
         };
 
         var byOffset = new SortedDictionary<Int32, List<FinderMethod>>();

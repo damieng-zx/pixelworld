@@ -16,7 +16,9 @@ public enum FinderMethod
     /// <summary>Font addresses in Z80 code.</summary>
     CodeRefs,
     /// <summary>How glyphs relate to each other.</summary>
-    Structure
+    Structure,
+    /// <summary>How much ink each capital has.</summary>
+    AlphabetProfile
 }
 
 public static class FinderMethodExtensions
@@ -26,7 +28,7 @@ public static class FinderMethodExtensions
     /// accepted by the original rules.
     /// </summary>
     public static Boolean IsOriginal(this FinderMethod method) =>
-        method is not (FinderMethod.CodeRefs or FinderMethod.Structure);
+        method is not (FinderMethod.CodeRefs or FinderMethod.Structure or FinderMethod.AlphabetProfile);
 
     public static String DisplayName(this FinderMethod method) => method switch
     {
@@ -36,6 +38,7 @@ public static class FinderMethodExtensions
         FinderMethod.Heuristics => "Heuristics",
         FinderMethod.CodeRefs => "Code refs",
         FinderMethod.Structure => "Structure",
+        FinderMethod.AlphabetProfile => "Alphabet profile",
         _ => method.ToString()
     };
 }
