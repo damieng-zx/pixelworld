@@ -1,9 +1,8 @@
-﻿using SixLabors.ImageSharp.PixelFormats;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using SixLabors.ImageSharp;
+using PixelWorld.Imaging;
 
 namespace PixelWorld.Fonts;
 
@@ -73,18 +72,18 @@ public class Font(String name, Int32 height = 8) : IEquatable<Font>
         return HashCode.Combine(Name, Height, Glyphs.Count, glyphHash);
     }
 
-    public Image<Rgba32> CreateImage(Int32 rows, Boolean transparent)
+    public Bitmap CreateImage(Int32 rows, Boolean transparent)
     {
         var fullWidth = Glyphs.Sum(g => g.Value.Width);
         var previewWidth = fullWidth / rows;
         var glyphsPerRow = Glyphs.Count / rows;
 
-        var image = new Image<Rgba32>(previewWidth, Height * rows);
+        var image = new Bitmap(previewWidth, Height * rows);
         DrawImage(image, glyphsPerRow, transparent);
         return image;
     }
 
-    public void DrawImage(Image<Rgba32> image, Int32 glyphsPerRow, Boolean transparent)
+    public void DrawImage(Bitmap image, Int32 glyphsPerRow, Boolean transparent)
     {
         var xOff = 0;
         var yOff = 0;
@@ -108,7 +107,7 @@ public class Font(String name, Int32 height = 8) : IEquatable<Font>
         }
     }
 
-    public void DrawImage(Image<Rgba32> image, Int32 glyphsPerRow, IReadOnlyDictionary<Int32, Char> targetCharset, Color foreground, Color background, Int32? padWidth = null)
+    public void DrawImage(Bitmap image, Int32 glyphsPerRow, IReadOnlyDictionary<Int32, Char> targetCharset, Color foreground, Color background, Int32? padWidth = null)
     {
         var xOff = 0;
         var yOff = 0;

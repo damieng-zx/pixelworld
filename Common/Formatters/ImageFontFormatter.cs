@@ -1,12 +1,8 @@
 ﻿using System;
 using PixelWorld.Fonts;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats;
-using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.PixelFormats;
+using PixelWorld.Imaging;
 using System.Collections.Generic;
 using System.IO;
-using SixLabors.ImageSharp.Formats.Webp;
 
 namespace PixelWorld.Formatters;
 
@@ -15,23 +11,9 @@ public static class ImageFontFormatter
     private const Int32 CharWidth = 8;
     private const Int32 CharHeight = 8;
 
-    public static readonly IImageEncoder PngEncoder = new PngEncoder
-    {
-        CompressionLevel = PngCompressionLevel.BestCompression,
-        ColorType = PngColorType.Palette,
-        BitDepth = PngBitDepth.Bit1
-    };
-
-    public static readonly IImageEncoder WebpEncoder = new WebpEncoder
-    {
-        Method = WebpEncodingMethod.BestQuality,
-        Quality = 100,
-        TransparentColorMode = WebpTransparentColorMode.Preserve
-    };
-
     public static void Read(Font font, Stream source, IReadOnlyDictionary<Int32, Char> charset)
     {
-        using var image = Image.Load<Rgb24>(source);
+        var image = Png.Read(source);
 
         if (image.Width % CharWidth != 0)
             throw new InvalidDataException($"Image width must be multiple of {CharWidth}");
@@ -56,9 +38,8 @@ public static class ImageFontFormatter
         }
     }
 
-    public static void Write(Font font, Stream output, IImageEncoder imageEncoder, Boolean transparent)
+    public static void Write(Font font, Stream output, Boolean transparent)
     {
-        using var bitmap = font.CreateImage(3, transparent);
-        bitmap.Save(output, imageEncoder);
+        Png.Write(font.CreateImage(3, transparent), output);
     }
 }

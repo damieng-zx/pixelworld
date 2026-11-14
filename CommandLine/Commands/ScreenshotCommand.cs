@@ -4,12 +4,12 @@ using PixelWorld;
 using PixelWorld.BinarySource;
 using PixelWorld.Display;
 using PixelWorld.Machines;
-using SixLabors.ImageSharp;
+using PixelWorld.Imaging;
 using Spectre.Console.Cli;
 using System;
 using System.ComponentModel;
 using System.IO;
-using SixLabors.ImageSharp.PixelFormats;
+using System.Collections.Generic;
 
 namespace CommandLine.Commands;
 
@@ -45,18 +45,14 @@ public class ScreenshotCommand : Command<ScreenshotSettings>
             return false;
         }
 
-        if (settings.Png || settings.Webp)
-        {
-            using var image = SpectrumDisplay.GetBitmap(memory.ToArray(), address, settings.Flashed);
-            if (settings.Png) WritePng(fileName, image, settings, address);
-            if (settings.Webp) WriteWebp(fileName, image, settings, address);
-        }
+        if (settings.Png)
+            WritePng(fileName, SpectrumDisplay.GetBitmap(memory.ToArray(), address, settings.Flashed), settings, address);
 
         if (settings.Gif)
             WriteGif(fileName, memory, settings, address);
 
         // Write SCR if specified OR if nothing specified (so it is the default)
-        if (settings.Scr || settings is {Png: false, Gif: false, Webp: false})
+        if (settings.Scr || settings is {Png: false, Gif: false})
             WriteScr(fileName, memory, settings, address);
 
         return true;
@@ -76,26 +72,17 @@ public class ScreenshotCommand : Command<ScreenshotSettings>
     {
         var targetName = Utils.MakeFileName(sourceName, "gif", settings.OutputFolder);
         Out.Write($"  Screenshotting {sourceName} @ {address} to {targetName}");
-        using var animated = SpectrumDisplay.GetBitmap(memory.ToArray(), address);
-        animated.Metadata.GetGifMetadata().RepeatCount = 0;
-        animated.Frames.RootFrame.Metadata.GetGifMetadata().FrameDelay = FlashDelay;
-        using var flashFrame = SpectrumDisplay.GetBitmap(memory.ToArray(), address, true).Frames.RootFrame;
-        flashFrame.Metadata.GetGifMetadata().FrameDelay = FlashDelay;
-        animated.Frames.AddFrame(flashFrame);
-        animated.SaveAsGif(targetName);
+        var bytes = memory.ToArray();
+        List<Bitmap> frames = [SpectrumDisplay.GetBitmap(bytes, address), SpectrumDisplay.GetBitmap(bytes, address, true)];
+        using var output = File.Create(targetName);
+        Gif.Write(frames, FlashDelay, output);
     }
 
-    private static void WritePng(String sourceName, Image<Rgb24> image, ScreenshotSettings settings, Int32 address)
+    private static void WritePng(String sourceName, Bitmap image, ScreenshotSettings settings, Int32 address)
     {
         var targetName = Utils.MakeFileName(sourceName, "png", settings.OutputFolder);
         Out.Write($"  Screenshotting {sourceName} @ {address} to {targetName}");
-        image.SaveAsPng(targetName);
-    }
-
-    private static void WriteWebp(String sourceName, Image<Rgb24> image, ScreenshotSettings settings, Int32 address)
-    {
-        var targetName = Utils.MakeFileName(sourceName, "webp", settings.OutputFolder);
-        Out.Write($"  Screenshotting {sourceName} @ {address} to {targetName}");
-        image.SaveAsWebp(targetName);
+        using var output = File.Create(targetName);
+        Png.Write(image, output);
     }
 }

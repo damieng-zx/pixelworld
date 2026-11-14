@@ -5,16 +5,12 @@ using System.Text.Json;
 using PixelWorld.Formatters;
 using PixelWorld.Machines;
 using PixelWorld.Transformers;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.PixelFormats;
+using PixelWorld.Imaging;
 
 namespace PixelWorld.Tools;
 
 public static class ConvertToGameBoy
 {
-    private static readonly PngEncoder gbPngEncoder = new() {ColorType = PngColorType.Palette};
-
     public static void GbStudio(List<String> fileNames, IReadOnlyDictionary<Int32, Char> sourceCharset, String outputFolder, Boolean dark, Boolean proportional)
     {
         foreach (var fileName in fileNames)
@@ -27,18 +23,18 @@ public static class ConvertToGameBoy
 
             var outFileName = Path.Combine(outputFolder, fontName);
             {
-                using var image = CreateFilledGbsBitmap(GameBoy.Palette[3]);
+                var image = CreateFilledGbsBitmap(GameBoy.Palette[3]);
                 font.DrawImage(image, 16, GameBoy.Studio, GameBoy.Palette[0], GameBoy.Palette[3]);
-                image.SaveAsPng(Path.ChangeExtension(outFileName, "png"), gbPngEncoder);
+                SavePng(image, Path.ChangeExtension(outFileName, "png"));
                 File.WriteAllText(Path.ChangeExtension(outFileName, "json"), JsonSerializer.Serialize(new GBJson(fontName + " Mono"), gbStudioJsonOptions));
             }
 
             if (dark)
             {
                 var darkFileName = outFileName + "-dark";
-                using var image = CreateFilledGbsBitmap(GameBoy.Palette[0]);
+                var image = CreateFilledGbsBitmap(GameBoy.Palette[0]);
                 font.DrawImage(image, 16, GameBoy.Studio, GameBoy.Palette[3], GameBoy.Palette[0]);
-                image.SaveAsPng(Path.ChangeExtension(darkFileName, "png"), gbPngEncoder);
+                SavePng(image, Path.ChangeExtension(darkFileName, "png"));
                 File.WriteAllText(Path.ChangeExtension(darkFileName, "json"), JsonSerializer.Serialize(new GBJson(fontName + " Mono Dark"), gbStudioJsonOptions));
             }
 
@@ -46,9 +42,9 @@ public static class ConvertToGameBoy
             {
                 var varFileName = outFileName + "-var";
                 var varFont = FontSpacer.MakeProportional(font, 0, 1, 8);
-                using var image = CreateFilledGbsBitmap(Color.Magenta);
+                var image = CreateFilledGbsBitmap(Color.Magenta);
                 varFont.DrawImage(image, 16, GameBoy.Studio, GameBoy.Palette[0], GameBoy.Palette[3], 8);
-                image.SaveAsPng(Path.ChangeExtension(varFileName, "png"), gbPngEncoder);
+                SavePng(image, Path.ChangeExtension(varFileName, "png"));
                 File.WriteAllText(Path.ChangeExtension(varFileName, "json"), JsonSerializer.Serialize(new GBJson(fontName + " Variable Width"), gbStudioJsonOptions));
             }
         }
@@ -61,12 +57,16 @@ public static class ConvertToGameBoy
 
     private static readonly JsonSerializerOptions gbStudioJsonOptions = new() {WriteIndented = true, IncludeFields = true};
 
-    private static Image<Rgba32> CreateFilledGbsBitmap(Color fill)
+    private static Bitmap CreateFilledGbsBitmap(Color fill)
     {
-        var image = new Image<Rgba32>(128, 112);
-        for (var x = 0; x < 128; x++)
-        for (var y = 0; y < 112; y++)
-            image[x, y] = fill;
+        var image = new Bitmap(128, 112);
+        image.Fill(fill);
         return image;
+    }
+
+    private static void SavePng(Bitmap image, String fileName)
+    {
+        using var output = File.Create(fileName);
+        Png.Write(image, output);
     }
 }

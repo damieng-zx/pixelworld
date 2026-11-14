@@ -1,8 +1,7 @@
-﻿using SixLabors.ImageSharp.PixelFormats;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using SixLabors.ImageSharp;
+using PixelWorld.Imaging;
 
 namespace PixelWorld.Display;
 
@@ -40,9 +39,9 @@ public class SpectrumDisplay
         return buffer.Skip(offset).Take(768).All(b => b == 0);
     }
 
-    public static Image<Rgb24> GetBitmap(Byte[] buffer, Int32 offset, Boolean altFlashFrame = false)
+    public static Bitmap GetBitmap(Byte[] buffer, Int32 offset, Boolean altFlashFrame = false)
     {
-        var image = new Image<Rgb24>(PixelWidth, PixelHeight);
+        var image = new Bitmap(PixelWidth, PixelHeight);
 
         for (var ay = 0; ay < AttributeHeight; ay++)
         for (var ax = 0; ax < AttributeWidth; ax++)

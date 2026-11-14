@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using SixLabors.ImageSharp;
+using PixelWorld.Imaging;
 
 namespace PixelWorld.Machines;
 

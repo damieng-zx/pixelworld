@@ -20,25 +20,12 @@ public class PreviewCommand : Command<PreviewSettings>
             Out.Write($"Generating preview files for {fileName}");
             var sourceFont = ByteFontFormatter.Load(fileName, Spectrum.UK);
 
-            if (settings.Webp)
-            {
-                var targetName = Utils.MakeFileName(fileName, "webp", settings.OutputFolder);
-                Out.Write($"  Previewing {fileName} to {targetName}");
-                // File.Create truncates; File.OpenWrite would leave any trailing bytes from a longer
-                // previous file after the new image, corrupting the output on a re-run.
-                using var output = File.Create(targetName);
-                ImageFontFormatter.Write(sourceFont, output, ImageFontFormatter.WebpEncoder, settings.Transparent);
-            }
-
-            if (settings.Png || !settings.Webp)
-            {
-                var targetName = Utils.MakeFileName(fileName, "png", settings.OutputFolder);
-                Out.Write($"  Previewing {fileName} to {targetName}");
-                // File.Create truncates; File.OpenWrite would leave any trailing bytes from a longer
-                // previous file after the new image, corrupting the output on a re-run.
-                using var output = File.Create(targetName);
-                ImageFontFormatter.Write(sourceFont, output, ImageFontFormatter.PngEncoder, settings.Transparent);
-            }
+            var targetName = Utils.MakeFileName(fileName, "png", settings.OutputFolder);
+            Out.Write($"  Previewing {fileName} to {targetName}");
+            // File.Create truncates; File.OpenWrite would leave any trailing bytes from a longer
+            // previous file after the new image, corrupting the output on a re-run.
+            using var output = File.Create(targetName);
+            ImageFontFormatter.Write(sourceFont, output, settings.Transparent);
         }
 
         return 0;
