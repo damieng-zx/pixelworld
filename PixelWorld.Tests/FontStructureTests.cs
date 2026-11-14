@@ -1,4 +1,3 @@
-using PixelWorld.DumpScanners;
 using PixelWorld.Machines;
 using PixelWorld.OffsetFinders;
 
@@ -6,18 +5,6 @@ namespace PixelWorld.Tests;
 
 public class FontStructureTests
 {
-    /// <summary>The ROM font slid one pixel left: just as font-like, but not a copy of the ROM.</summary>
-    internal static byte[] TestFont() => Spectrum.RomFont.ToArray().Select(b => (byte)(b << 1)).ToArray();
-
-    internal static byte[] Embed(byte[] font, int at, int size = 65536)
-    {
-        var buffer = new byte[size];
-        var random = new Random(1);
-        random.NextBytes(buffer);
-        font.CopyTo(buffer, at);
-        return buffer;
-    }
-
     [Fact]
     public void Score_RomFont_IsHigh()
     {
@@ -40,7 +27,7 @@ public class FontStructureTests
     [Fact]
     public void Score_FontReadOneCharacterOff_IsLowerThanAligned()
     {
-        var buffer = Embed(TestFont(), 40000);
+        var buffer = TestData.Embed(TestData.TestFont(), 40000);
 
         var aligned = FontStructure.Score(buffer, 40000).Total;
         var shifted = FontStructure.Score(buffer, 40008).Total;
@@ -71,7 +58,7 @@ public class FontStructureTests
     [Fact]
     public void DetectRange_CompleteFont_IsFull()
     {
-        var buffer = Embed(TestFont(), 40000);
+        var buffer = TestData.Embed(TestData.TestFont(), 40000);
 
         Assert.True(FontStructure.DetectRange(buffer, 40000).IsFull);
     }
@@ -79,9 +66,9 @@ public class FontStructureTests
     [Fact]
     public void DetectRange_DigitsAndCapitalsOnly_StartsAtZeroAndEndsAtZ()
     {
-        var font = TestFont();
+        var font = TestData.TestFont();
         var digitsToZ = font.AsSpan(('0' - 32) * 8, ('Z' - '0' + 1) * 8).ToArray();
-        var buffer = Embed(digitsToZ, 40000);
+        var buffer = TestData.Embed(digitsToZ, 40000);
         var fontBase = 40000 - ('0' - 32) * 8;
 
         var range = FontStructure.DetectRange(buffer, fontBase);
@@ -93,69 +80,11 @@ public class FontStructureTests
     [Fact]
     public void Extract_PartialRange_BlanksOtherSlots()
     {
-        var buffer = Embed(TestFont(), 40000);
+        var buffer = TestData.Embed(TestData.TestFont(), 40000);
 
         var data = FontStructure.Extract(buffer, 40000, new CharRange('A', 'Z'));
 
         Assert.All(data.AsSpan(0, ('A' - 32) * 8).ToArray(), b => Assert.Equal(0, b));
         Assert.Equal(buffer.AsSpan(40000 + ('A' - 32) * 8, 8).ToArray(), data.AsSpan(('A' - 32) * 8, 8).ToArray());
-    }
-}
-
-public class StructuralFinderTests
-{
-    [Fact]
-    public void FindOffsets_FindsEmbeddedFont()
-    {
-        var buffer = FontStructureTests.Embed(FontStructureTests.TestFont(), 40000);
-
-        Assert.Contains(40000, StructuralFinder.FindOffsets(buffer));
-    }
-
-    [Fact]
-    public void FindOffsets_RandomData_ReturnsEmpty()
-    {
-        var buffer = new byte[65536];
-        new Random(3).NextBytes(buffer);
-
-        Assert.Empty(StructuralFinder.FindOffsets(buffer));
-    }
-}
-
-public class CodeReferenceFinderTests
-{
-    [Fact]
-    public void FindOffsets_CharsSetFromHl_ReturnsAddressPlus256()
-    {
-        var buffer = new byte[65536];
-        // LD HL,39744 ; LD (23606),HL
-        byte[] code = [0x21, 0x40, 0x9B, 0x22, 0x36, 0x5C];
-        code.CopyTo(buffer, 30000);
-
-        Assert.Contains(39744 + 256, CodeReferenceFinder.FindOffsets(buffer));
-    }
-
-    [Fact]
-    public void FindOffsets_PrintRoutine_ReturnsConstantReadings()
-    {
-        var buffer = new byte[65536];
-        // LD L,A ; LD H,0 ; ADD HL,HL x3 ; LD DE,40000 ; ADD HL,DE
-        byte[] code = [0x6F, 0x26, 0x00, 0x29, 0x29, 0x29, 0x11, 0x40, 0x9C, 0x19];
-        code.CopyTo(buffer, 30000);
-
-        var offsets = CodeReferenceFinder.FindOffsets(buffer);
-
-        Assert.Contains(40000, offsets); // code - 32
-        Assert.Contains(40000 + 256, offsets); // code used directly
-    }
-
-    [Fact]
-    public void FindOffsets_48KDump_MapsAddressToOffset()
-    {
-        var buffer = new byte[Spectrum.Ram48K];
-        byte[] code = [0x21, 0x40, 0x9B, 0x22, 0x36, 0x5C];
-        code.CopyTo(buffer, 10000);
-
-        Assert.Contains(39744 + 256 - 16384, CodeReferenceFinder.FindOffsets(buffer));
     }
 }
