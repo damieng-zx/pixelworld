@@ -85,13 +85,19 @@ This scores every offset by how the glyphs relate to each other, using [FontStru
 
 It doesn't need a space, symbols or lowercase, so it also finds fonts that only define digits and capitals. The slots that belong to the font are worked out from which ones respect the capitals' blank columns, and the rest are left blank in the extracted font.
 
+A score of 12 is needed, or 8 when nothing counts against the offset and nearly every capital is different (25 or more), since those are almost always real fonts with a few odd glyphs.
+
+### [AlphabetProfileFinder](https://github.com/damieng/pixelworld/blob/main/Common/OffsetFinders/AlphabetProfileFinder.cs)
+
+Whatever its style, a font draws M and B with more pixels than I and L. This slides a 26-glyph window over memory and keeps those whose ink counts follow the average A-Z profile of fonts collected from RAM dumps, that share a blank row or column, and that have some structure to them (a low score, but not graphics). It needs nothing but the capitals, so it finds fonts with the digits straight after them or in an unusual style. Only the capitals are extracted from these.
+
 ### [CodeReferenceFinder](https://github.com/damieng/pixelworld/blob/main/Common/OffsetFinders/CodeReferenceFinder.cs)
 
 A game that prints text has to have its font address somewhere in its code. This looks for `LD (23606),rr` after `LD rr,nn` (setting CHARS even if it has since been changed), and for print routines that multiply the character code by 8 with three `ADD HL,HL` and then add a constant. The constant could be the address of space, of character 0, of 0 or of A, so each reading is scored and the best kept. Because the code backs up the address, a lower score is accepted than for a blind scan.
 
 ### How finds are combined
 
-Several finders often suggest the same font, and the newer ones suggest many readings of it a few bytes or characters apart. Finds from the original four finders are kept as before. A find from StructuralFinder or CodeReferenceFinder is kept only if it doesn't overlap one of those or a better-scoring new find, since two fonts can't occupy the same memory. Copies of the ROM font are skipped, and where the same font is in a dump twice only one copy is kept.
+Several finders often suggest the same font, and the newer ones suggest many readings of it a few bytes or characters apart. Finds from the original four finders are kept as before. A find from the newer finders is kept only if it doesn't overlap one of those or a better-scoring new find, since two fonts can't occupy the same memory. Two readings less than a glyph apart are the same font read a row or two off, so the one the CHARS variable or the code points at wins over the better-scoring one. An original-finder find that scores 3 or less and has no CHARS, code or ROM-glyph evidence is graphics that happened to start with a blank tile, and a real font overlapping it replaces it. Copies of the ROM font are skipped, and where the same font is in a dump twice only one copy is kept.
 
 `hunt --known <folder>` also skips any font identical to one already in a folder of `.ch8` files, and reports how many it skipped.
 
