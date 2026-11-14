@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.ComponentModel;
 using CommandLine.Commands.Settings;
 using PixelWorld;
@@ -10,7 +11,7 @@ namespace CommandLine.Commands;
 [Description("Identify fonts that use glyphs from a source font")]
 public class FindMatchingGlyphsCommand :Command<FindMatchingGlyphsSettings>
 {
-    public override Int32 Execute(CommandContext context, FindMatchingGlyphsSettings settings)
+    public override Int32 Execute(CommandContext context, FindMatchingGlyphsSettings settings, CancellationToken cancellationToken)
     {
         var files = Utils.MatchGlobWithFiles(settings.Glob);
         Matcher.Match(files, settings.SourceFontFile, settings.MatchGlyphs);

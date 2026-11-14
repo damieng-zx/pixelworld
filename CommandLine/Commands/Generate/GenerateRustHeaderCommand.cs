@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.ComponentModel;
 using CommandLine.Commands.Settings;
 using PixelWorld;
@@ -10,7 +11,7 @@ namespace CommandLine.Commands.Generate;
 [Description("Generate Rust header")]
 public class GenerateRustHeaderCommand : Command<TextOutputSettings>
 {
-    public override Int32 Execute(CommandContext context, TextOutputSettings settings)
+    public override Int32 Execute(CommandContext context, TextOutputSettings settings, CancellationToken cancellationToken)
     {
         var files = Utils.MatchGlobWithFiles(settings.Glob);
         RustHeaderFontFormatter.CreateFontHeaderConst(files, settings.OutputFolder, settings.Credit);

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.ComponentModel;
 using System.IO;
 using CommandLine.Commands.Settings;
@@ -13,7 +14,7 @@ namespace CommandLine.Commands.Convert;
 [Description("Create ZX font from PNG preview")]
 public class ConvertFromPngCommand : Command<RequiredSettings>
 {
-    public override Int32 Execute(CommandContext context, RequiredSettings settings)
+    public override Int32 Execute(CommandContext context, RequiredSettings settings, CancellationToken cancellationToken)
     {
         foreach (var fileName in Utils.MatchGlobWithFiles(settings.Glob))
             ConvertFromImage(settings, fileName);

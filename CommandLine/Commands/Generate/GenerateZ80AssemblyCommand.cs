@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.ComponentModel;
 using CommandLine.Commands.Settings;
 using PixelWorld;
@@ -10,7 +11,7 @@ namespace CommandLine.Commands.Generate;
 [Description("Generate Zilog Z80 assembly")]
 public class GenerateZ80AssemblyCommand : Command<AssemblySettings>
 {
-    public override Int32 Execute(CommandContext context, AssemblySettings settings)
+    public override Int32 Execute(CommandContext context, AssemblySettings settings, CancellationToken cancellationToken)
     {
         var files = Utils.MatchGlobWithFiles(settings.Glob);
         switch (settings.Base)

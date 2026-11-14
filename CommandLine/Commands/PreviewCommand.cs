@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using PixelWorld;
 using Spectre.Console.Cli;
 using System.ComponentModel;
@@ -12,7 +13,7 @@ namespace CommandLine.Commands;
 [Description("Create preview images from ZX font")]
 public class PreviewCommand : Command<PreviewSettings>
 {
-    public override Int32 Execute(CommandContext context, PreviewSettings settings)
+    public override Int32 Execute(CommandContext context, PreviewSettings settings, CancellationToken cancellationToken)
     {
         foreach (var fileName in Utils.MatchGlobWithFiles(settings.Glob))
         {

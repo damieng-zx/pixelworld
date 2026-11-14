@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using PixelWorld;
 using PixelWorld.Tools;
 using Spectre.Console.Cli;
@@ -10,7 +11,7 @@ namespace CommandLine.Commands;
 [Description("Dump memory from emulator snapshot")]
 public class ExtractScreenTilesCommand : Command<ExtractTilesSettings>
 {
-    public override Int32 Execute(CommandContext context, ExtractTilesSettings settings)
+    public override Int32 Execute(CommandContext context, ExtractTilesSettings settings, CancellationToken cancellationToken)
     {
         var files = Utils.MatchGlobWithFiles(settings.Glob);
         TileExtractor.Extract(files, settings.OutputFolder, settings.MinTiles, settings.MaxTiles);

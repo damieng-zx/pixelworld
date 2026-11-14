@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.ComponentModel;
 using System.IO;
 using CommandLine.Commands.Settings;
@@ -12,7 +13,7 @@ namespace CommandLine.Commands.Convert;
 [Description("Create ZX font from Commodore 64 font")]
 public class ConvertFromC64Command : Command<RequiredSettings>
 {
-    public override Int32 Execute(CommandContext context, RequiredSettings settings)
+    public override Int32 Execute(CommandContext context, RequiredSettings settings, CancellationToken cancellationToken)
     {
         foreach (var fileName in Utils.MatchGlobWithFiles(settings.Glob))
             ConvertFromC64(settings, fileName);

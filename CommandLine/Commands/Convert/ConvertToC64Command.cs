@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.ComponentModel;
 using CommandLine.Commands.Settings;
 using PixelWorld;
@@ -11,7 +12,7 @@ namespace CommandLine.Commands.Convert;
 [Description("Create Commodore 64 fonts from ZX font")]
 public class ConvertToC64Command : Command<ConvertSettings>
 {
-    public override Int32 Execute(CommandContext context, ConvertSettings settings)
+    public override Int32 Execute(CommandContext context, ConvertSettings settings, CancellationToken cancellationToken)
     {
         var files = Utils.MatchGlobWithFiles(settings.Glob);
         ConvertTo.Commodore64(files, Spectrum.UK, settings.OutputFolder, settings.TemplatePath);

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using PixelWorld;
 using PixelWorld.Tools;
 using Spectre.Console.Cli;
@@ -10,7 +11,7 @@ namespace CommandLine.Commands;
 [Description("Hunt memory dumps for possible ZX fonts")]
 public class HuntCommand : Command<HuntSettings>
 {
-    public override Int32 Execute(CommandContext context, HuntSettings settings)
+    public override Int32 Execute(CommandContext context, HuntSettings settings, CancellationToken cancellationToken)
     {
         var files = Utils.MatchGlobWithFiles(settings.Glob);
         FontHunter.Hunt(files, settings.OutputFolder, settings.KnownFolder);
