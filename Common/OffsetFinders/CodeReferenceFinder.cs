@@ -36,20 +36,20 @@ public static class CodeReferenceFinder
     {
         const Byte lo = Spectrum.CharsSysVar & 0xFF, hi = Spectrum.CharsSysVar >> 8;
 
-        // The opcode that loads the register the store writes from.
-        Int32 loadOpcode;
-        Int32 loadPrefix = 0;
-        if (buffer[i] == 0x22 && buffer[i + 1] == lo && buffer[i + 2] == hi) loadOpcode = 0x21; // LD (nn),HL
-        else if (i + 4 > buffer.Length || buffer[i + 2] != lo || buffer[i + 3] != hi) return;
-        else if (buffer[i] == 0xED && buffer[i + 1] == 0x63) loadOpcode = 0x21; // LD (nn),HL (ED form)
-        else if (buffer[i] == 0xED && buffer[i + 1] == 0x43) loadOpcode = 0x01; // LD (nn),BC
-        else if (buffer[i] == 0xED && buffer[i + 1] == 0x53) loadOpcode = 0x11; // LD (nn),DE
-        else if (buffer[i] is 0xDD or 0xFD && buffer[i + 1] == 0x22)
+        Boolean IsCharsAddress(Int32 at) => buffer[at] == lo && buffer[at + 1] == hi;
+
+        // The opcode, and index prefix if any, of the LD rr,nn that loads the register being stored.
+        var (loadPrefix, loadOpcode) = (buffer[i], buffer[i + 1]) switch
         {
-            loadPrefix = buffer[i]; // LD (nn),IX / IY
-            loadOpcode = 0x21;
-        }
-        else return;
+            (0x22, _) when IsCharsAddress(i + 1) => (0, 0x21), // LD (nn),HL
+            (0xED, 0x63) when IsCharsAddress(i + 2) => (0, 0x21), // LD (nn),HL (ED form)
+            (0xED, 0x43) when IsCharsAddress(i + 2) => (0, 0x01), // LD (nn),BC
+            (0xED, 0x53) when IsCharsAddress(i + 2) => (0, 0x11), // LD (nn),DE
+            (0xDD or 0xFD, 0x22) when IsCharsAddress(i + 2) => ((Int32)buffer[i], 0x21), // LD (nn),IX / IY
+            _ => (0, -1)
+        };
+
+        if (loadOpcode < 0) return;
 
         for (var j = i - 3; j >= Math.Max(0, i - 12); j--)
         {
