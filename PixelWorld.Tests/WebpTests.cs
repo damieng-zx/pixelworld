@@ -196,17 +196,17 @@ public class WebpTests
     {
         try
         {
-            using var process = Process.Start(new ProcessStartInfo("dwebp", ["-png", webp, "-o", png])
+            using var process = Process.Start(new ProcessStartInfo("dwebp", [webp, "-o", png]) // PNG is what dwebp writes by default
             {
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
             })!;
-            process.StandardOutput.ReadToEnd();
-            process.StandardError.ReadToEnd();
+            var output = process.StandardOutput.ReadToEnd();
+            var error = process.StandardError.ReadToEnd();
             process.WaitForExit();
-            Assert.Equal(0, process.ExitCode);
+            Assert.True(process.ExitCode == 0, $"dwebp exited with {process.ExitCode}: {output}{error}");
             return true;
         }
         catch (System.ComponentModel.Win32Exception)

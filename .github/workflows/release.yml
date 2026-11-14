@@ -7,6 +7,10 @@ on:
     tags:
       - 'v*.*.*'
 
+# Creating the release and attaching the archives needs write access to the repository's contents.
+permissions:
+  contents: write
+
 jobs:
   build-and-upload:
     strategy:
