@@ -48,6 +48,24 @@ public class SpectrumDumpScannerTests
     }
 
     [Fact]
+    public void Scan_CodePointsOneRowOffStructure_PrefersTheCode()
+    {
+        // Digits and capitals only, so only the newer finders are involved and the code's reading
+        // (one row after the structurally better one) is not a legacy find.
+        var font = TestData.TestFont();
+        var buffer = TestData.Embed(font.AsSpan(('0' - 32) * 8, ('Z' - '0' + 1) * 8).ToArray(), 50000);
+        const int spaceAt = 50000 - ('0' - 32) * 8;
+        byte[] code = [0x21, (spaceAt + 1 - 256) & 0xFF, (spaceAt + 1 - 256) >> 8, 0x22, 0x36, 0x5C]; // LD HL,nn ; LD (23606),HL
+        code.CopyTo(buffer, 32000);
+
+        var fonts = SpectrumDumpScanner.Scan(buffer);
+
+        var found = Assert.Single(fonts, f => Math.Abs(f.Offset - spaceAt) < 8);
+        Assert.Equal(spaceAt + 1, found.Offset);
+        Assert.Contains(FinderMethod.CodeRefs, found.Methods);
+    }
+
+    [Fact]
     public void Scan_PartialFont_IsFoundWithRange()
     {
         var font = TestData.TestFont();

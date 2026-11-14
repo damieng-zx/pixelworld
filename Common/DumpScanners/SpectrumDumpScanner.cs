@@ -26,6 +26,9 @@ public sealed record FoundFont(
     public Int32 Start => FontStructure.GlyphAt(Offset, Range.First);
     public Int32 End => FontStructure.GlyphAt(Offset, Range.Last + 1);
     public Boolean Overlaps(FoundFont other) => Start < other.End && other.Start < End;
+
+    /// <summary>Something other than how it looks says this is where a font is: the code points at it.</summary>
+    public Boolean BackedByCode => Methods.Contains(FinderMethod.CodeRefs) || Methods.Contains(FinderMethod.Chars);
 }
 
 public static class SpectrumDumpScanner
@@ -84,8 +87,9 @@ public static class SpectrumDumpScanner
     /// <summary>
     /// Two fonts cannot occupy the same memory, so where finds overlap only one reading is right. Fonts
     /// accepted by the original rules are all kept, as before; a find from the newer finders is kept only
-    /// if it overlaps none of those and no better-scoring new find. Then drop any font identical to one
-    /// already kept from this dump.
+    /// if it overlaps none of those and no better-scoring new find. A reading less than one glyph away from
+    /// another is the same font read a row or two off, which scores about the same, so the one the code
+    /// points at wins. Then drop any font identical to one already kept from this dump.
     /// </summary>
     private static List<FoundFont> Merge(List<FoundFont> fonts)
     {
@@ -96,9 +100,17 @@ public static class SpectrumDumpScanner
         {
             var overlapped = kept.FindIndex(font.Overlaps);
             if (overlapped < 0)
+            {
                 kept.Add(font);
-            else
-                kept[overlapped] = kept[overlapped] with { Methods = [..kept[overlapped].Methods.Union(font.Methods)] };
+                continue;
+            }
+
+            var other = kept[overlapped];
+            var methods = other.Methods.Union(font.Methods).ToList();
+            var rowsOff = Math.Abs(font.Offset - other.Offset) < FontStructure.GlyphSize;
+            kept[overlapped] = !other.Legacy && rowsOff && font.BackedByCode && !other.BackedByCode
+                ? font with { Methods = methods }
+                : other with { Methods = methods };
         }
 
         // Where the same font is in memory twice, keep the copy the original rules found so file names
