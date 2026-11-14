@@ -17,12 +17,27 @@ public static class StructuralFinder
     public const Int32 MinDistinctLetters = 22;
 
     /// <summary>
+    /// Lowest <see cref="FontScore.Total"/> when nothing counts against the offset and nearly every capital
+    /// is different (<see cref="MinDistinctLettersWhenClean"/>). Fonts that score a little under
+    /// <see cref="MinScore"/> are mostly real, with a few odd glyphs; the penalty and the distinct letters
+    /// are what separate them from graphics.
+    /// </summary>
+    public const Int32 MinCleanScore = 8;
+
+    public const Int32 MinDistinctLettersWhenClean = 25;
+
+    /// <summary>
     /// Fewest symmetric glyphs plus letter pairs sharing their tops for a base to be worth scoring. Low
     /// enough that no font found by full scoring is skipped.
     /// </summary>
     private const Int32 MinPrecheckMatches = 4;
 
-    public static List<Int32> FindOffsets(Byte[] buffer, Int32 minScore = MinScore)
+    /// <summary>Whether a score is font-like enough to report an offset found with no other evidence.</summary>
+    public static Boolean Accepts(FontScore score) =>
+        score.DistinctLetters >= MinDistinctLetters && score.Total >= MinScore
+        || score.DistinctLetters >= MinDistinctLettersWhenClean && score.Penalty == 0 && score.Total >= MinCleanScore;
+
+    public static List<Int32> FindOffsets(Byte[] buffer)
     {
         var offsets = new List<Int32>();
         var index = new SymmetricIndex(buffer);
@@ -36,8 +51,7 @@ public static class StructuralFinder
             // Cheap pre-check, since full scoring every offset is too slow for thousands of dumps.
             if (index.SymmetricCount(fontBase) + FontStructure.SharedTopCount(buffer, fontBase) < MinPrecheckMatches) continue;
 
-            var score = FontStructure.Score(buffer, fontBase);
-            if (score.Total >= minScore && score.DistinctLetters >= MinDistinctLetters)
+            if (Accepts(FontStructure.Score(buffer, fontBase)))
                 offsets.Add(fontBase);
         }
 

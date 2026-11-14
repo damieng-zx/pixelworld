@@ -68,8 +68,9 @@ public static class SpectrumDumpScanner
         }
         else
         {
-            var minScore = methods.Contains(FinderMethod.CodeRefs) ? CodeReferenceFinder.MinScore : StructuralFinder.MinScore;
-            if (score.Total < minScore || score.DistinctLetters < StructuralFinder.MinDistinctLetters) return null;
+            var backedByCode = methods.Contains(FinderMethod.CodeRefs)
+                               && score.Total >= CodeReferenceFinder.MinScore && score.DistinctLetters >= StructuralFinder.MinDistinctLetters;
+            if (!backedByCode && !StructuralFinder.Accepts(score)) return null;
             range = score.Range;
         }
 
