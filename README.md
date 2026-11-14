@@ -108,7 +108,7 @@ The log line for each font explains why it was kept:
 
 ## Setup
 
-The project should compile with VS 2019 or later.
+The projects target .NET 9, so build them with the .NET 9 SDK (`dotnet build`) or Visual Studio 2022 17.12 or later.
 
 Some [template files are necessary for the conversions](https://github.com/damieng/pixelworld/discussions/14) and should have their location specified by the `--templatePath` parameter.
 
