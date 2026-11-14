@@ -6,38 +6,29 @@ namespace PixelWorld.Tests;
 
 public class SpectrumDumpScannerTests
 {
-    private static byte[] Embed(byte[] font, int at, int size = 65536)
+    [Fact]
+    public void CountRomGlyphsChanged_RomFont_IsZero()
     {
-        var buffer = new byte[size];
-        new Random(1).NextBytes(buffer);
-        font.CopyTo(buffer, at);
-        return buffer;
+        Assert.Equal(0, SpectrumDumpScanner.CountRomGlyphsChanged(Spectrum.RomFont.ToArray()));
     }
 
     [Fact]
-    public void IsRomFont_RomFont_IsTrue()
-    {
-        var buffer = Embed(Spectrum.RomFont.ToArray(), 30000);
-
-        Assert.True(SpectrumDumpScanner.IsRomFont(buffer, 30000));
-    }
-
-    [Fact]
-    public void IsRomFont_OneGlyphChanged_IsFalse()
+    public void CountRomGlyphsChanged_OneGlyphChanged_IsOne()
     {
         var font = Spectrum.RomFont.ToArray();
         font[('A' - 32) * 8 + 3] ^= 0x18;
-        var buffer = Embed(font, 30000);
 
-        Assert.False(SpectrumDumpScanner.IsRomFont(buffer, 30000));
+        Assert.Equal(1, SpectrumDumpScanner.CountRomGlyphsChanged(font));
     }
 
     [Fact]
-    public void IsRomFont_TooCloseToEnd_IsFalse()
+    public void CountRomGlyphsChanged_IgnoresSpaceAndCopyright()
     {
-        var buffer = new byte[1000];
+        var font = Spectrum.RomFont.ToArray();
+        font[3] = 0xFF;
+        font[95 * 8 + 3] = 0xFF;
 
-        Assert.False(SpectrumDumpScanner.IsRomFont(buffer, 500));
+        Assert.Equal(0, SpectrumDumpScanner.CountRomGlyphsChanged(font));
     }
 
     [Fact]

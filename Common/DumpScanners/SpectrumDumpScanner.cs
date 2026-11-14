@@ -3,7 +3,6 @@ using PixelWorld.Display;
 using PixelWorld.Machines;
 using PixelWorld.OffsetFinders;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 
 namespace PixelWorld.DumpScanners;
@@ -40,12 +39,6 @@ public static class SpectrumDumpScanner
 
     /// <summary>Fonts with this few glyphs changed from the ROM are reported as ROM-derived.</summary>
     public const Int32 RomDerivedThreshold = 4;
-
-    public static List<FoundFont> Read(BinaryReader reader)
-    {
-        var buffer = reader.ReadBytes(1024 * 2048); // 2MB is enough for any Speccy
-        return Scan(buffer);
-    }
 
     public static List<FoundFont> Scan(Byte[] buffer)
     {
@@ -165,12 +158,6 @@ public static class SpectrumDumpScanner
     public static Boolean IsMissingTooManyGlyphs(Byte[] buffer, Int32 offset)
     {
         return buffer.CountBlankGlyphs(offset, Spectrum.FontSize, 8) > 26;
-    }
-
-    public static Boolean IsRomFont(Byte[] buffer, Int32 offset)
-    {
-        return offset >= 0 && offset + Spectrum.FontSize <= buffer.Length &&
-               buffer.AsSpan(offset, Spectrum.FontSize).SequenceEqual(Spectrum.RomFont);
     }
 
     /// <summary>How many glyphs from ! to ~ differ from the ROM font; 0 means it is a copy of the ROM font.</summary>
