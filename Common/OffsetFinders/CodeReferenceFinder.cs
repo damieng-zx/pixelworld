@@ -86,7 +86,8 @@ public static class CodeReferenceFinder
             if (add >= 0 && Follows(buffer, j + 3, add, i + 3))
                 AddAllReadings(buffer, buffer[j + 1] | buffer[j + 2] << 8, bases);
 
-            // ADD A,n then LD H,A: the font sits on a 256-byte boundary and only its high byte is added.
+            // LD A,H then ADD A,n, or ADD A,n then LD H,A: the font sits on a 256-byte boundary and only
+            // its high byte is added.
             if (j > i && buffer[j] == 0xC6 && j + 2 < buffer.Length && (buffer[j + 2] == 0x67 || buffer[j - 1] == 0x7C))
                 AddAllReadings(buffer, buffer[j + 1] << 8, bases);
         }
