@@ -90,10 +90,12 @@ public static class FontStructure
 
     public static Boolean InRange(Byte[] buffer, Int32 at) => at >= 0 && at + GlyphSize <= buffer.Length;
 
-    /// <summary>Has some ink but is not a solid block, so it could be a drawn character.</summary>
-    public static Boolean IsInked(Byte[] buffer, Int32 at)
+    /// <summary>
+    /// The glyph's rows ORed together (the columns with any ink) and ANDed together (the columns inked
+    /// in every row).
+    /// </summary>
+    private static (Byte Or, Byte And) Ink(Byte[] buffer, Int32 at)
     {
-        if (!InRange(buffer, at)) return false;
         Byte or = 0, and = 0xFF;
         for (var y = 0; y < GlyphSize; y++)
         {
@@ -101,7 +103,29 @@ public static class FontStructure
             and &= buffer[at + y];
         }
 
+        return (or, and);
+    }
+
+    /// <summary>Has some ink but is not a solid block, so it could be a drawn character.</summary>
+    public static Boolean IsInked(Byte[] buffer, Int32 at)
+    {
+        if (!InRange(buffer, at)) return false;
+        var (or, and) = Ink(buffer, at);
         return or != 0 && and != 0xFF;
+    }
+
+    /// <summary>Whether two different glyphs have the same, inked, top <paramref name="rows"/> rows.</summary>
+    private static Boolean SharesTop(Byte[] buffer, Int32 a, Int32 b, Int32 rows)
+    {
+        if (!InRange(buffer, a) || !InRange(buffer, b)) return false;
+        Byte ink = 0;
+        for (var y = 0; y < rows; y++)
+        {
+            if (buffer[a + y] != buffer[b + y]) return false;
+            ink |= buffer[a + y];
+        }
+
+        return ink != 0 && !SameGlyph(buffer, a, b);
     }
 
     private static Boolean SameGlyph(Byte[] buffer, Int32 a, Int32 b)
@@ -119,13 +143,8 @@ public static class FontStructure
     /// </summary>
     public static Boolean IsMirrorOf(Byte[] buffer, Int32 a, Int32 b)
     {
-        Byte orA = 0, orB = 0;
-        for (var y = 0; y < GlyphSize; y++)
-        {
-            orA |= buffer[a + y];
-            orB |= Reverse[buffer[b + y]];
-        }
-
+        var orA = Ink(buffer, a).Or;
+        var orB = Reverse[Ink(buffer, b).Or];
         if (orA == 0 || orB == 0) return false;
 
         var shiftA = BitOperations.LeadingZeroCount((UInt32)orA) - 24;
@@ -146,13 +165,11 @@ public static class FontStructure
     public static Boolean IsSubstantial(Byte[] buffer, Int32 at)
     {
         if (!IsInked(buffer, at)) return false;
-        Byte or = 0;
+        var or = Ink(buffer, at).Or;
         var rows = 0;
         for (var y = 0; y < GlyphSize; y++)
-        {
-            or |= buffer[at + y];
-            if (buffer[at + y] != 0) rows++;
-        }
+            if (buffer[at + y] != 0)
+                rows++;
 
         // Span from the leftmost to the rightmost inked column.
         var width = 32 - BitOperations.LeadingZeroCount((UInt32)or) - BitOperations.TrailingZeroCount((UInt32)or);
@@ -186,18 +203,8 @@ public static class FontStructure
         var tops = 0;
         foreach (var (first, second, rows) in SharedTops)
         {
-            if (!In(first) || !In(second)) continue;
-            Int32 a = GlyphAt(fontBase, first), b = GlyphAt(fontBase, second);
-            if (!InRange(buffer, a) || !InRange(buffer, b) || SameGlyph(buffer, a, b)) continue;
-            var same = true;
-            Byte ink = 0;
-            for (var y = 0; y < rows && same; y++)
-            {
-                same = buffer[a + y] == buffer[b + y];
-                ink |= buffer[a + y];
-            }
-
-            if (same && ink != 0) tops++;
+            if (In(first) && In(second) && SharesTop(buffer, GlyphAt(fontBase, first), GlyphAt(fontBase, second), rows))
+                tops++;
         }
 
         // Distinct ones only: a tile repeated across the slots is not 13 symmetric letters.
@@ -285,8 +292,7 @@ public static class FontStructure
             var at = GlyphAt(fontBase, c);
             if (!IsInked(buffer, at)) continue;
             inked++;
-            Byte or = 0;
-            for (var y = 0; y < GlyphSize; y++) or |= buffer[at + y];
+            var or = Ink(buffer, at).Or;
             if ((or & 0x80) == 0) left++;
             if ((or & 0x01) == 0) right++;
             if (buffer[at] == 0) top++;
@@ -332,13 +338,7 @@ public static class FontStructure
         {
             var at = GlyphAt(fontBase, c);
             if (!InRange(buffer, at)) return false;
-            Byte or = 0, and = 0xFF;
-            for (var y = 0; y < GlyphSize; y++)
-            {
-                or |= buffer[at + y];
-                and &= buffer[at + y];
-            }
-
+            var (or, and) = Ink(buffer, at);
             return or == 0 || (and != 0xFF && (or & mask) == 0);
         }
 
@@ -421,19 +421,8 @@ public static class FontStructure
     {
         var n = 0;
         foreach (var (first, second, rows) in SharedTops)
-        {
-            Int32 a = GlyphAt(fontBase, first), b = GlyphAt(fontBase, second);
-            if (!InRange(buffer, a) || !InRange(buffer, b)) continue;
-            var same = true;
-            Byte ink = 0;
-            for (var y = 0; y < rows && same; y++)
-            {
-                same = buffer[a + y] == buffer[b + y];
-                ink |= buffer[a + y];
-            }
-
-            if (same && ink != 0 && !SameGlyph(buffer, a, b)) n++;
-        }
+            if (SharesTop(buffer, GlyphAt(fontBase, first), GlyphAt(fontBase, second), rows))
+                n++;
 
         return n;
     }
