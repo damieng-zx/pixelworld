@@ -19,7 +19,7 @@ public static class StructuralFinder
     public static List<Int32> FindOffsets(Byte[] buffer, Int32 minScore = MinScore)
     {
         var offsets = new List<Int32>();
-        var index = new FontStructure.Index(buffer);
+        var index = new SymmetricIndex(buffer);
 
         // The base is where space would be; A to Z have to be in memory even when space is not.
         var first = -FontStructure.GlyphAt(0, 'A');
@@ -36,5 +36,34 @@ public static class StructuralFinder
         }
 
         return offsets;
+    }
+
+    /// <summary>
+    /// Which offsets hold a symmetric glyph, worked out once so the scan can cheaply reject most bases
+    /// before computing a full score.
+    /// </summary>
+    private sealed class SymmetricIndex
+    {
+        private readonly Byte[] symmetric;
+
+        public SymmetricIndex(Byte[] buffer)
+        {
+            symmetric = new Byte[buffer.Length];
+            for (var i = 0; i + 8 <= buffer.Length; i++)
+                symmetric[i] = FontStructure.IsSymmetric(buffer, i) ? (Byte)1 : (Byte)0;
+        }
+
+        /// <summary>How many of the glyphs that should be symmetric are, for the font based here.</summary>
+        public Int32 SymmetricCount(Int32 fontBase)
+        {
+            var n = 0;
+            foreach (var c in FontStructure.SymmetricChars)
+            {
+                var at = FontStructure.GlyphAt(fontBase, c);
+                if (at >= 0 && at < symmetric.Length) n += symmetric[at];
+            }
+
+            return n;
+        }
     }
 }

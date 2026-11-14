@@ -44,14 +44,6 @@ public readonly record struct FontScore(
         $"score {Total} (mirror {Mirror}, tops {Tops}, symmetric {Symmetric}, descenders {Descenders}, gutter {Gutter}, penalty {Penalty}, distinct letters {DistinctLetters}, edge ink {EdgeInk})";
 }
 
-/// <summary>The character codes of a font that are actually present in memory.</summary>
-public readonly record struct CharRange(Int32 First, Int32 Last)
-{
-    public static readonly CharRange Full = new(32, 127);
-    public Boolean IsFull => First == 32 && Last == 127;
-    public override String ToString() => $"'{(Char)First}'..'{(Char)Last}'";
-}
-
 public static class FontStructure
 {
     private const Int32 GlyphSize = 8;
@@ -64,7 +56,7 @@ public static class FontStructure
     private static readonly (Char First, Char Second, Int32 Rows)[] SharedTops =
         [('P', 'R', 4), ('O', 'Q', 4), ('E', 'F', 3), ('C', 'G', 3), ('b', 'h', 3), ('i', 'j', 4)];
 
-    private const String SymmetricChars = "AHIMOTUVWXY08";
+    internal const String SymmetricChars = "AHIMOTUVWXY08";
     private const String AsymmetricChars = "BCDEFGJKLNPRSZ234579";
     private const String Descenders = "gjpqy";
     private const String NonDescenders = "acemnorsuvwxz";
@@ -388,34 +380,7 @@ public static class FontStructure
         return font;
     }
 
-    /// <summary>
-    /// Precomputed per-offset flags so a scan of every offset can cheaply reject most of them before
-    /// computing a full score.
-    /// </summary>
-    public sealed class Index
-    {
-        private readonly Byte[] symmetric;
-
-        public Index(Byte[] buffer)
-        {
-            symmetric = new Byte[buffer.Length];
-            for (var i = 0; i + GlyphSize <= buffer.Length; i++)
-                symmetric[i] = IsSymmetric(buffer, i) ? (Byte)1 : (Byte)0;
-        }
-
-        public Int32 SymmetricCount(Int32 fontBase)
-        {
-            var n = 0;
-            foreach (var c in SymmetricChars)
-            {
-                var at = GlyphAt(fontBase, c);
-                if (at >= 0 && at < symmetric.Length) n += symmetric[at];
-            }
-
-            return n;
-        }
-    }
-
+    /// <summary>How many of the pairs such as P and R share their top rows, whatever the font's range.</summary>
     public static Int32 SharedTopCount(Byte[] buffer, Int32 fontBase)
     {
         var n = 0;
