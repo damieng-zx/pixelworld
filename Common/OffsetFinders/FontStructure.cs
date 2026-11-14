@@ -39,7 +39,7 @@ public readonly record struct FontScore(
     public Int32 Total => Mirror + Tops + Symmetric + Descenders + Gutter - Penalty;
 
     public override String ToString() =>
-        $"score {Total} (mirror {Mirror}, tops {Tops}, symmetric {Symmetric}, descenders {Descenders}, gutter {Gutter}, penalty {Penalty})";
+        $"score {Total} (mirror {Mirror}, tops {Tops}, symmetric {Symmetric}, descenders {Descenders}, gutter {Gutter}, penalty {Penalty}, distinct letters {DistinctLetters}, edge ink {EdgeInk})";
 }
 
 /// <summary>The character codes of a font that are actually present in memory.</summary>
