@@ -48,6 +48,15 @@ public class FontStructureTests
     }
 
     [Fact]
+    public void MirrorCount_OnlyCountsPairsInsideTheRange()
+    {
+        var rom = Spectrum.RomFont.ToArray();
+
+        Assert.True(FontStructure.MirrorCount(rom, 0, CharRange.Full) >= 3);
+        Assert.Equal(0, FontStructure.MirrorCount(rom, 0, new CharRange('A', 'Z')));
+    }
+
+    [Fact]
     public void IsSymmetric_SingleVerticalLine_IsNotCounted()
     {
         byte[] buffer = [0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01];

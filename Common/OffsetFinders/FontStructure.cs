@@ -208,14 +208,7 @@ public static class FontStructure
         var range = DetectRange(buffer, fontBase, gutter.ColumnMask);
         Boolean In(Char c) => c >= range.First && c <= range.Last;
 
-        var mirror = 0;
-        foreach (var (left, right) in MirrorPairs)
-        {
-            if (!In(left) || !In(right)) continue;
-            Int32 a = GlyphAt(fontBase, left), b = GlyphAt(fontBase, right);
-            if (IsSubstantial(buffer, a) && IsSubstantial(buffer, b) && !SameGlyph(buffer, a, b) && IsMirrorOf(buffer, a, b))
-                mirror++;
-        }
+        var mirror = MirrorCount(buffer, fontBase, range);
 
         var tops = 0;
         foreach (var (first, second, rows) in SharedTops)
@@ -405,6 +398,21 @@ public static class FontStructure
         }
 
         return font;
+    }
+
+    /// <summary>How many of the pairs such as ( and ) in <paramref name="range"/> are mirror images of each other.</summary>
+    public static Int32 MirrorCount(Byte[] buffer, Int32 fontBase, CharRange range)
+    {
+        var n = 0;
+        foreach (var (left, right) in MirrorPairs)
+        {
+            if (left < range.First || right > range.Last) continue;
+            Int32 a = GlyphAt(fontBase, left), b = GlyphAt(fontBase, right);
+            if (IsSubstantial(buffer, a) && IsSubstantial(buffer, b) && !SameGlyph(buffer, a, b) && IsMirrorOf(buffer, a, b))
+                n++;
+        }
+
+        return n;
     }
 
     /// <summary>How many of the pairs such as P and R share their top rows, whatever the font's range.</summary>

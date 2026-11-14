@@ -27,8 +27,8 @@ public static class StructuralFinder
     public const Int32 MinDistinctLettersWhenClean = 25;
 
     /// <summary>
-    /// Fewest symmetric glyphs plus letter pairs sharing their tops for a base to be worth scoring. Low
-    /// enough that no font found by full scoring is skipped.
+    /// Fewest symmetric glyphs, letter pairs sharing their tops and mirrored bracket pairs for a base to be
+    /// worth scoring. Low enough that no font found by full scoring is skipped.
     /// </summary>
     private const Int32 MinPrecheckMatches = 4;
 
@@ -49,7 +49,10 @@ public static class StructuralFinder
         for (var fontBase = Math.Max(first, 0); fontBase <= last; fontBase++)
         {
             // Cheap pre-check, since full scoring every offset is too slow for thousands of dumps.
-            if (index.SymmetricCount(fontBase) + FontStructure.SharedTopCount(buffer, fontBase) < MinPrecheckMatches) continue;
+            var matches = index.SymmetricCount(fontBase) + FontStructure.SharedTopCount(buffer, fontBase);
+            if (matches < MinPrecheckMatches)
+                matches += FontStructure.MirrorCount(buffer, fontBase, CharRange.Full);
+            if (matches < MinPrecheckMatches) continue;
 
             if (Accepts(FontStructure.Score(buffer, fontBase)))
                 offsets.Add(fontBase);
