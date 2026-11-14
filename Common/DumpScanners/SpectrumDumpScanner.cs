@@ -23,8 +23,8 @@ public sealed record FoundFont(
     Boolean Legacy)
 {
     /// <summary>The bytes of memory the font's present glyphs occupy.</summary>
-    public Int32 Start => Offset + (Range.First - 32) * 8;
-    public Int32 End => Offset + (Range.Last - 31) * 8;
+    public Int32 Start => FontStructure.GlyphAt(Offset, Range.First);
+    public Int32 End => FontStructure.GlyphAt(Offset, Range.Last + 1);
     public Boolean Overlaps(FoundFont other) => Start < other.End && other.Start < End;
 }
 

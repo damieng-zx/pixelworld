@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using PixelWorld.Machines;
 
 namespace PixelWorld.OffsetFinders;
 
@@ -46,8 +47,28 @@ public readonly record struct FontScore(
 
 public static class FontStructure
 {
-    private const Int32 GlyphSize = 8;
-    private const Int32 BaseChar = 32;
+    public const Int32 GlyphSize = 8;
+
+    // Tuning, set by checking what was found in the RAM dump collection against the fonts already
+    // collected from it. Re-run that check after changing any of these.
+
+    /// <summary>Fewest inked glyphs before a gutter or baseline they share means anything.</summary>
+    private const Int32 MinInkedToAgree = 20;
+
+    /// <summary>Percentage of capitals that must leave an outer column or row blank for it to be a gutter.</summary>
+    private const Int32 GutterAgreementPercent = 90;
+
+    /// <summary>Percentage of capitals and digits that must end on the same row for it to be the baseline.</summary>
+    private const Int32 BaselineAgreementPercent = 60;
+
+    /// <summary>Percentage of the slots from a possible first character to Z that must fit the gutter.</summary>
+    private const Int32 StartFitPercent = 92;
+
+    /// <summary>Percentage of the slots from [ to (c) that must fit the gutter for lowercase to be present.</summary>
+    private const Int32 LowercaseFitPercent = 90;
+
+    /// <summary>Fewest inked lowercase letters for lowercase to be present.</summary>
+    private const Int32 MinInkedLowercase = 20;
 
     private static readonly (Char Left, Char Right)[] MirrorPairs =
         [('(', ')'), ('[', ']'), ('{', '}'), ('<', '>'), ('/', '\\'), ('b', 'd'), ('p', 'q')];
@@ -80,7 +101,7 @@ public static class FontStructure
     }
 
     /// <summary>Where the glyph for <paramref name="c"/> lives if the font's space is at <paramref name="fontBase"/>.</summary>
-    public static Int32 GlyphAt(Int32 fontBase, Int32 c) => fontBase + (c - BaseChar) * GlyphSize;
+    public static Int32 GlyphAt(Int32 fontBase, Int32 c) => fontBase + (c - CharRange.Space) * GlyphSize;
 
     public static Boolean InRange(Byte[] buffer, Int32 at) => at >= 0 && at + GlyphSize <= buffer.Length;
 
@@ -253,7 +274,7 @@ public static class FontStructure
             inked++;
         }
 
-        if (inked < 20) return (0, 0);
+        if (inked < MinInkedToAgree) return (0, 0);
 
         var baseline = 0;
         for (var y = 1; y < GlyphSize; y++)
@@ -261,7 +282,7 @@ public static class FontStructure
                 baseline = y;
 
         // Most letters have to agree on a baseline for a descender to mean anything.
-        if (bottoms[baseline] * 10 < inked * 6 || baseline == GlyphSize - 1) return (0, 0);
+        if (bottoms[baseline] * 100 < inked * BaselineAgreementPercent || baseline == GlyphSize - 1) return (0, 0);
 
         Int32 Below(String chars)
         {
@@ -279,7 +300,10 @@ public static class FontStructure
         return (Below(Descenders), Below(NonDescenders));
     }
 
-    /// <summary>Which outer columns (as a bit mask) and rows the letters A-Z leave blank in at least 90% of glyphs.</summary>
+    /// <summary>
+    /// Which outer columns (as a bit mask) and rows nearly all the letters A-Z leave blank
+    /// (<see cref="GutterAgreementPercent"/>).
+    /// </summary>
     public static (Byte ColumnMask, Boolean TopRow, Boolean BottomRow) LearnGutter(Byte[] buffer, Int32 fontBase)
     {
         Int32 inked = 0, left = 0, right = 0, top = 0, bottom = 0;
@@ -295,8 +319,8 @@ public static class FontStructure
             if (buffer[at + GlyphSize - 1] == 0) bottom++;
         }
 
-        if (inked < 20) return (0, false, false);
-        Boolean Mostly(Int32 n) => n * 10 >= inked * 9;
+        if (inked < MinInkedToAgree) return (0, false, false);
+        Boolean Mostly(Int32 n) => n * 100 >= inked * GutterAgreementPercent;
         var mask = (Byte)((Mostly(left) ? 0x80 : 0) | (Mostly(right) ? 0x01 : 0));
         return (mask, Mostly(top), Mostly(bottom));
     }
@@ -343,12 +367,12 @@ public static class FontStructure
         }
 
         var first = 'A';
-        foreach (var start in new[] { 32, 33, '0', 'A' })
+        foreach (var start in new[] { CharRange.Space, '!', '0', 'A' })
         {
             // A real space is blank; without one, the font starting at ! is the better reading.
-            if (start == 32 && (!InRange(buffer, fontBase) || !buffer.IsEmpty(fontBase))) continue;
+            if (start == CharRange.Space && (!InRange(buffer, fontBase) || !buffer.IsEmpty(fontBase))) continue;
             var span = 'Z' - start + 1;
-            if (FitCount(start, 'Z') * 100 >= span * 92)
+            if (FitCount(start, 'Z') * 100 >= span * StartFitPercent)
             {
                 first = (Char)start;
                 break;
@@ -362,19 +386,22 @@ public static class FontStructure
             if (IsInked(buffer, GlyphAt(fontBase, c)))
                 lowerInked++;
 
-        var last = FitCount('[', 127) * 100 >= 37 * 90 && lowerInked >= 20 ? 127 : 'Z';
-        return new CharRange(first, last);
+        const Int32 afterCapitals = 'Z' + 1;
+        const Int32 afterCapitalsCount = CharRange.Copyright - afterCapitals + 1;
+        var hasLowercase = FitCount(afterCapitals, CharRange.Copyright) * 100 >= afterCapitalsCount * LowercaseFitPercent
+                           && lowerInked >= MinInkedLowercase;
+        return new CharRange(first, hasLowercase ? CharRange.Copyright : 'Z');
     }
 
     /// <summary>The 768-byte font from space to ©, with any slot outside <paramref name="range"/> blank.</summary>
     public static Byte[] Extract(Byte[] buffer, Int32 fontBase, CharRange range)
     {
-        var font = new Byte[96 * GlyphSize];
+        var font = new Byte[Spectrum.FontSize];
         for (var c = range.First; c <= range.Last; c++)
         {
             var at = GlyphAt(fontBase, c);
             if (InRange(buffer, at))
-                Array.Copy(buffer, at, font, (c - BaseChar) * GlyphSize, GlyphSize);
+                Array.Copy(buffer, at, font, GlyphAt(0, c), GlyphSize);
         }
 
         return font;

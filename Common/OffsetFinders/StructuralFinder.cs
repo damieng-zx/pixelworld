@@ -16,6 +16,12 @@ public static class StructuralFinder
     /// <summary>Fewest distinct A-Z glyphs, so tables of one repeated tile are not mistaken for letters.</summary>
     public const Int32 MinDistinctLetters = 22;
 
+    /// <summary>
+    /// Fewest symmetric glyphs plus letter pairs sharing their tops for a base to be worth scoring. Low
+    /// enough that no font found by full scoring is skipped.
+    /// </summary>
+    private const Int32 MinPrecheckMatches = 4;
+
     public static List<Int32> FindOffsets(Byte[] buffer, Int32 minScore = MinScore)
     {
         var offsets = new List<Int32>();
@@ -23,12 +29,12 @@ public static class StructuralFinder
 
         // The base is where space would be; A to Z have to be in memory even when space is not.
         var first = -FontStructure.GlyphAt(0, 'A');
-        var last = buffer.Length - FontStructure.GlyphAt(0, 'Z') - 8;
+        var last = buffer.Length - FontStructure.GlyphAt(0, 'Z') - FontStructure.GlyphSize;
 
         for (var fontBase = Math.Max(first, 0); fontBase <= last; fontBase++)
         {
             // Cheap pre-check, since full scoring every offset is too slow for thousands of dumps.
-            if (index.SymmetricCount(fontBase) + FontStructure.SharedTopCount(buffer, fontBase) < 4) continue;
+            if (index.SymmetricCount(fontBase) + FontStructure.SharedTopCount(buffer, fontBase) < MinPrecheckMatches) continue;
 
             var score = FontStructure.Score(buffer, fontBase);
             if (score.Total >= minScore && score.DistinctLetters >= MinDistinctLetters)
@@ -49,7 +55,7 @@ public static class StructuralFinder
         public SymmetricIndex(Byte[] buffer)
         {
             symmetric = new Byte[buffer.Length];
-            for (var i = 0; i + 8 <= buffer.Length; i++)
+            for (var i = 0; i + FontStructure.GlyphSize <= buffer.Length; i++)
                 symmetric[i] = FontStructure.IsSymmetric(buffer, i) ? (Byte)1 : (Byte)0;
         }
 

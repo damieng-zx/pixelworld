@@ -1,4 +1,5 @@
 ﻿using PixelWorld.DumpScanners;
+using PixelWorld.Machines;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -49,8 +50,8 @@ public static class FontHunter
 
         var known = Directory.EnumerateFiles(knownFolder, "*.ch8")
             .Select(File.ReadAllBytes)
-            .Where(b => b.Length >= 768)
-            .Select(b => Convert.ToBase64String(b, 0, 768))
+            .Where(b => b.Length >= Spectrum.FontSize)
+            .Select(b => Convert.ToBase64String(b, 0, Spectrum.FontSize))
             .ToHashSet();
         Out.Write($"Loaded {known.Count} known fonts from {knownFolder}");
         return known;

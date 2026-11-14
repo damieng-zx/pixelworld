@@ -15,6 +15,15 @@ public static class CodeReferenceFinder
     /// <summary>Lowest <see cref="FontScore.Total"/> for a base the code points at; lower than a blind scan needs.</summary>
     public const Int32 MinScore = 7;
 
+    /// <summary>How many bytes before a store or multiply to look for the LD that loads the address.</summary>
+    private const Int32 LookBehind = 12;
+
+    /// <summary>How many bytes after a multiply to look for the LD that loads the address.</summary>
+    private const Int32 LookAhead = 14;
+
+    /// <summary>How many bytes after both the LD and the multiply the ADD may be.</summary>
+    private const Int32 AddWithin = 6;
+
     public static List<Int32> FindOffsets(Byte[] buffer)
     {
         var bases = new HashSet<Int32>();
@@ -51,7 +60,7 @@ public static class CodeReferenceFinder
 
         if (loadOpcode < 0) return;
 
-        for (var j = i - 3; j >= Math.Max(0, i - 12); j--)
+        for (var j = i - 3; j >= Math.Max(0, i - LookBehind); j--)
         {
             if (buffer[j] != loadOpcode) continue;
             if (loadPrefix != 0 && (j == 0 || buffer[j - 1] != loadPrefix)) continue;
@@ -70,8 +79,8 @@ public static class CodeReferenceFinder
     {
         if (buffer[i] != 0x29 || buffer[i + 1] != 0x29 || buffer[i + 2] != 0x29) return;
 
-        var from = Math.Max(0, i - 12);
-        var to = Math.Min(buffer.Length - 3, i + 14);
+        var from = Math.Max(0, i - LookBehind);
+        var to = Math.Min(buffer.Length - 3, i + LookAhead);
         for (var j = from; j < to; j++)
         {
             // LD DE,nn ... ADD HL,DE  /  LD BC,nn ... ADD HL,BC  /  LD HL,nn ... ADD HL,DE (after EX DE,HL)
@@ -97,7 +106,7 @@ public static class CodeReferenceFinder
     private static Boolean Follows(Byte[] buffer, Int32 start, Int32 opcode, Int32 alsoAfter)
     {
         var from = Math.Max(start, alsoAfter);
-        for (var k = from; k < Math.Min(buffer.Length, from + 6); k++)
+        for (var k = from; k < Math.Min(buffer.Length, from + AddWithin); k++)
             if (buffer[k] == opcode)
                 return true;
         return false;
@@ -106,9 +115,9 @@ public static class CodeReferenceFinder
     private static void AddAllReadings(Byte[] buffer, Int32 address, HashSet<Int32> bases)
     {
         AddAddress(buffer, address, bases); // code - 32
-        AddAddress(buffer, address + 32 * 8, bases); // code used as-is
-        AddAddress(buffer, address - 16 * 8, bases); // code - '0'
-        AddAddress(buffer, address - 33 * 8, bases); // code - 'A'
+        AddAddress(buffer, address + ' ' * 8, bases); // code used as-is
+        AddAddress(buffer, address - ('0' - ' ') * 8, bases); // code - '0'
+        AddAddress(buffer, address - ('A' - ' ') * 8, bases); // code - 'A'
     }
 
     /// <summary>
