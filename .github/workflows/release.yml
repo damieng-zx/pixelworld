@@ -11,70 +11,92 @@ on:
 permissions:
   contents: write
 
+# A tag push and a release created for that same tag are the same version, so they share a
+# group and cannot upload the same asset names at the same time.
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
 jobs:
   build-and-upload:
+    # Kept in step with build.yml. The arm64 runtimes are cross-published from an x64 runner
+    # of the same OS, which is how they have always been produced.
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             runtime: linux-x64
             artifact-name: pixelworld-linux-x64
             archive-ext: tar.gz
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             runtime: linux-arm64
             artifact-name: pixelworld-linux-arm64
             archive-ext: tar.gz
-          - os: windows-latest
+          - os: windows-2025
             runtime: win-x64
             artifact-name: pixelworld-win-x64
             archive-ext: zip
-          - os: windows-latest
+          - os: windows-2025
             runtime: win-arm64
             artifact-name: pixelworld-win-arm64
             archive-ext: zip
-          - os: macos-latest
+          - os: macos-26
             runtime: osx-x64
             artifact-name: pixelworld-osx-x64
             archive-ext: tar.gz
-          - os: macos-latest
+          - os: macos-26
             runtime: osx-arm64
             artifact-name: pixelworld-osx-arm64
             archive-ext: tar.gz
 
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         fetch-depth: 0
 
+    # GITHUB_REF_NAME is the tag for both triggers above. Everything after this step needs
+    # the version, so a tag that is not vX.Y.Z fails here rather than publishing a release
+    # stamped with a malformed version.
     - name: Extract version from tag
       id: get_version
       shell: bash
       run: |
-        VERSION=${GITHUB_REF#refs/tags/v}
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        set -euo pipefail
+        TAG="$GITHUB_REF_NAME"
+        VERSION="${TAG#v}"
+        if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.]+)*$ ]]; then
+          echo "Tag '$TAG' is not a vX.Y.Z version" >&2
+          exit 1
+        fi
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
         echo "Version: $VERSION"
 
     - name: Update Directory.Build.props
       shell: bash
       run: |
+        set -euo pipefail
         VERSION="${{ steps.get_version.outputs.version }}"
-        if [ -f "Directory.Build.props" ]; then
-          # Update version in Directory.Build.props using a cross-platform approach
-          sed "s|<Version>.*</Version>|<Version>$VERSION</Version>|g" Directory.Build.props > Directory.Build.props.tmp
-          sed "s|<AssemblyVersion>.*</AssemblyVersion>|<AssemblyVersion>$VERSION</AssemblyVersion>|g" Directory.Build.props.tmp > Directory.Build.props.tmp2
-          sed "s|<FileVersion>.*</FileVersion>|<FileVersion>$VERSION</FileVersion>|g" Directory.Build.props.tmp2 > Directory.Build.props
-          rm Directory.Build.props.tmp Directory.Build.props.tmp2
-          echo "Updated Directory.Build.props:"
-          cat Directory.Build.props
-        else
-          echo "Warning: Directory.Build.props not found"
+        if [ ! -f "Directory.Build.props" ]; then
+          echo "Directory.Build.props not found" >&2
+          exit 1
         fi
+        # AssemblyVersion and FileVersion take at most four numeric parts, so a prerelease
+        # tag like 1.2.3-beta.1 is stamped as 1.2.3 there while Version keeps the suffix.
+        NUMERIC="${VERSION%%-*}"
+        sed -i.bak \
+          -e "s|<Version>.*</Version>|<Version>$VERSION</Version>|" \
+          -e "s|<AssemblyVersion>.*</AssemblyVersion>|<AssemblyVersion>$NUMERIC</AssemblyVersion>|" \
+          -e "s|<FileVersion>.*</FileVersion>|<FileVersion>$NUMERIC</FileVersion>|" \
+          Directory.Build.props
+        rm -f Directory.Build.props.bak
+        cat Directory.Build.props
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v6
       with:
         dotnet-version: '9.0.x'
 
@@ -84,6 +106,9 @@ jobs:
     - name: Build
       run: dotnet build --configuration Release --no-restore
 
+    # Left non-blocking, as it has always been in this workflow: a red test here must not
+    # stop a release that has already been tagged. The suite is still run and reported, and
+    # build.yml gates every push on it.
     - name: Test
       run: dotnet test --configuration Release --no-build --verbosity normal
       continue-on-error: true
@@ -96,21 +121,24 @@ jobs:
       if: matrix.archive-ext == 'zip'
       shell: bash
       run: |
-        cd ./publish/${{ matrix.artifact-name }}
-        7z a ../../${{ matrix.artifact-name }}.zip *
-        cd ../..
+        set -euo pipefail
+        7z a -tzip "${{ matrix.artifact-name }}.zip" "./publish/${{ matrix.artifact-name }}/*"
 
     - name: Create release archive (Linux/macOS)
       if: matrix.archive-ext == 'tar.gz'
       shell: bash
       run: |
-        cd ./publish/${{ matrix.artifact-name }}
-        tar -czf ../../${{ matrix.artifact-name }}.tar.gz *
-        cd ../..
+        set -euo pipefail
+        # The archive holds the files at its root, with no leading directory, which is
+        # what the published assets have always contained.
+        out="$PWD/${{ matrix.artifact-name }}.tar.gz"
+        cd "./publish/${{ matrix.artifact-name }}"
+        tar -czf "$out" *
 
     - name: Upload release assets
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@v3
       with:
         files: ${{ matrix.artifact-name }}.${{ matrix.archive-ext }}
+        fail_on_unmatched_files: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

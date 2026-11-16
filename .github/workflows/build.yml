@@ -7,38 +7,56 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# Nothing in this workflow writes to the repository.
+permissions:
+  contents: read
+
+# A newer push to the same pull request makes the run in progress obsolete. Pushes to
+# main are left alone so a run is never cancelled partway through uploading binaries.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build:
+    # Runner images are named rather than using -latest so an image rollover cannot change
+    # what is built without a commit behind it; these are the images the labels resolved to
+    # when this was written. The ubuntu-latest label moves to Ubuntu 26 next, so moving to
+    # ubuntu-26.04 should be a deliberate change with a build behind it.
+    #
+    # Each runtime is built and tested on the same runner as before: the arm64 runtimes are
+    # cross-published from an x64 runner of the same OS, as they always have been.
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             runtime: linux-x64
             artifact-name: pixelworld-linux-x64
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             runtime: linux-arm64
             artifact-name: pixelworld-linux-arm64
-          - os: windows-latest
+          - os: windows-2025
             runtime: win-x64
             artifact-name: pixelworld-win-x64
-          - os: windows-latest
+          - os: windows-2025
             runtime: win-arm64
             artifact-name: pixelworld-win-arm64
-          - os: macos-latest
+          - os: macos-26
             runtime: osx-x64
             artifact-name: pixelworld-osx-x64
-          - os: macos-latest
+          - os: macos-26
             runtime: osx-arm64
             artifact-name: pixelworld-osx-arm64
 
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v6
       with:
         dotnet-version: '9.0.x'
 
@@ -56,8 +74,9 @@ jobs:
         dotnet publish ./CommandLine/CommandLine.csproj --configuration Release --runtime ${{ matrix.runtime }} --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false --output ./publish/${{ matrix.artifact-name }}
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ matrix.artifact-name }}
         path: ./publish/${{ matrix.artifact-name }}
+        if-no-files-found: error
         retention-days: 90
