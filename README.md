@@ -1,6 +1,6 @@
 # PixelWorld
 
-ZX Spectrum font conversion, ripping and manipulation tool for 8x8 bitmap fonts.
+ZX Spectrum 8x8 bitmap font conversion, ripping and manipulation tool.
 
 This is a tool I have been using for a number of years to convert my own fonts into a variety of formats available from https://damieng.com/fonts/zx-origins/ 
 
