@@ -8,22 +8,13 @@ namespace PixelWorld.Tests;
 
 public class SzxTests
 {
-    private const int PageSize = 0x4000;
-
     private const int Spectrum16K = 0;
     private const int Spectrum48K = 1;
     private const int Spectrum128K = 2;
+    private const int SpectrumPlus2A = 4;
     private const int SpectrumPlus3 = 5;
+    private const int SpectrumPlus3E = 6;
     private const int Timex2068 = 9;
-
-    /// <summary>The contents of RAM page n, different for every page and every position in it.</summary>
-    private static byte[] Page(int number)
-    {
-        var page = new byte[PageSize];
-        for (var i = 0; i < page.Length; i++)
-            page[i] = (byte)(i * 7 + number * 31 + 1);
-        return page;
-    }
 
     private static byte[] Compress(byte[] data)
     {
@@ -65,24 +56,11 @@ public class SzxTests
         Chunk(file, "SPCR", [1, port7ffd, port1ffd, 0, 0, 0, 0, 0]);
         Chunk(file, "KEYB", new byte[5]);
         foreach (var page in pages)
-            Chunk(file, "RAMP", RamPage(page, Page(page), compressed));
+            Chunk(file, "RAMP", RamPage(page, SpectrumMemory.Page(page), compressed));
         return file.ToArray();
     }
 
     private static ArraySegment<byte> Load(byte[] snapshot) => SzxBinarySource.Instance.GetMemory(new MemoryStream(snapshot));
-
-    private static void AssertPageAt(ArraySegment<byte> memory, int address, int page)
-    {
-        Assert.Equal(Page(page), memory.Array!.AsSpan(memory.Offset + address, PageSize).ToArray());
-    }
-
-    /// <summary>What an undecodable file gives: a default segment, which cannot even be enumerated.</summary>
-    private static void AssertNothing(ArraySegment<byte> memory) => Assert.Equal(0, memory.Count);
-
-    private static void AssertBlank(ArraySegment<byte> memory, int address)
-    {
-        Assert.All(memory.Array!.AsSpan(memory.Offset + address, PageSize).ToArray(), b => Assert.Equal(0, b));
-    }
 
     private static readonly int[] AllPages = [0, 1, 2, 3, 4, 5, 6, 7];
 
@@ -95,15 +73,15 @@ public class SzxTests
         var memory = Load(Snapshot(Spectrum128K, 3, 0, AllPages, compressed));
 
         Assert.Equal((16 + 128) * 1024, memory.Count);
-        AssertBlank(memory, 0);
-        AssertPageAt(memory, 0x4000, 5);
-        AssertPageAt(memory, 0x8000, 2);
-        AssertPageAt(memory, 0xC000, 3);
-        AssertPageAt(memory, 0x10000, 0);
-        AssertPageAt(memory, 0x14000, 1);
-        AssertPageAt(memory, 0x18000, 4);
-        AssertPageAt(memory, 0x1C000, 6);
-        AssertPageAt(memory, 0x20000, 7);
+        SpectrumMemory.AssertBlank(memory, 0);
+        SpectrumMemory.AssertPageAt(memory, 0x4000, 5);
+        SpectrumMemory.AssertPageAt(memory, 0x8000, 2);
+        SpectrumMemory.AssertPageAt(memory, 0xC000, 3);
+        SpectrumMemory.AssertPageAt(memory, 0x10000, 0);
+        SpectrumMemory.AssertPageAt(memory, 0x14000, 1);
+        SpectrumMemory.AssertPageAt(memory, 0x18000, 4);
+        SpectrumMemory.AssertPageAt(memory, 0x1C000, 6);
+        SpectrumMemory.AssertPageAt(memory, 0x20000, 7);
     }
 
     [Fact]
@@ -112,7 +90,7 @@ public class SzxTests
         // Bit 4 selects the ROM and bit 3 the shadow screen; only the low three bits pick the bank.
         var memory = Load(Snapshot(Spectrum128K, 0x10 | 0x08 | 6, 0, AllPages));
 
-        AssertPageAt(memory, 0xC000, 6);
+        SpectrumMemory.AssertPageAt(memory, 0xC000, 6);
     }
 
     [Fact]
@@ -122,7 +100,7 @@ public class SzxTests
         var memory = Load(Snapshot(Spectrum128K, 5, 0, AllPages));
 
         Assert.Equal((32 + 128) * 1024, memory.Count);
-        AssertPageAt(memory, 0xC000, 5);
+        SpectrumMemory.AssertPageAt(memory, 0xC000, 5);
     }
 
     [Fact]
@@ -130,8 +108,8 @@ public class SzxTests
     {
         var memory = Load(Snapshot(Spectrum128K, 0, 0, [5, 2, 0]));
 
-        AssertPageAt(memory, 0x4000, 5);
-        AssertBlank(memory, 0x10000); // page 1
+        SpectrumMemory.AssertPageAt(memory, 0x4000, 5);
+        SpectrumMemory.AssertBlank(memory, 0x10000); // page 1
     }
 
     [Fact]
@@ -140,10 +118,10 @@ public class SzxTests
         var memory = Load(Snapshot(Spectrum48K, 0, 0, [5, 2, 0]));
 
         Assert.Equal(64 * 1024, memory.Count);
-        AssertBlank(memory, 0);
-        AssertPageAt(memory, 0x4000, 5);
-        AssertPageAt(memory, 0x8000, 2);
-        AssertPageAt(memory, 0xC000, 0);
+        SpectrumMemory.AssertBlank(memory, 0);
+        SpectrumMemory.AssertPageAt(memory, 0x4000, 5);
+        SpectrumMemory.AssertPageAt(memory, 0x8000, 2);
+        SpectrumMemory.AssertPageAt(memory, 0xC000, 0);
     }
 
     [Fact]
@@ -152,9 +130,9 @@ public class SzxTests
         var memory = Load(Snapshot(Spectrum16K, 0, 0, [5]));
 
         Assert.Equal(64 * 1024, memory.Count);
-        AssertPageAt(memory, 0x4000, 5);
-        AssertBlank(memory, 0x8000);
-        AssertBlank(memory, 0xC000);
+        SpectrumMemory.AssertPageAt(memory, 0x4000, 5);
+        SpectrumMemory.AssertBlank(memory, 0x8000);
+        SpectrumMemory.AssertBlank(memory, 0xC000);
     }
 
     [Fact]
@@ -162,21 +140,43 @@ public class SzxTests
     {
         var memory = Load(Snapshot(SpectrumPlus3, 4, 0b0000_0100, AllPages));
 
-        AssertPageAt(memory, 0xC000, 4);
-        AssertPageAt(memory, 0x10000, 0);
+        SpectrumMemory.AssertPageAt(memory, 0xC000, 4);
+        SpectrumMemory.AssertPageAt(memory, 0x10000, 0);
     }
 
-    [Fact]
-    public void GetMemory_Plus3_InSpecialPagingMode_IsNotSupported()
+    [Theory]
+    [InlineData(0b001)] // banks 0, 1, 2, 3
+    [InlineData(0b011)] // banks 4, 5, 6, 7
+    [InlineData(0b101)] // banks 4, 5, 6, 3
+    [InlineData(0b111)] // banks 4, 7, 6, 3
+    public void GetMemory_Plus3_WithRamOverRom_KeepsEveryBank(int port1ffd)
     {
-        // Bit 0 of port 0x1FFD maps RAM over the ROM area, which this does not model.
-        AssertNothing(Load(Snapshot(SpectrumPlus3, 0, 0b0000_0001, AllPages)));
+        var special = Load(Snapshot(SpectrumPlus3, 4, (byte)port1ffd, AllPages));
+
+        // Which banks the processor sees where does not change what is in the snapshot.
+        Assert.Equal(Load(Snapshot(SpectrumPlus3, 4, 0, AllPages)).ToArray(), special.ToArray());
+        SpectrumMemory.AssertPageAt(special, 0x4000, 5);
+        SpectrumMemory.AssertPageAt(special, 0x8000, 2);
+        SpectrumMemory.AssertPageAt(special, 0xC000, 4);
+        foreach (var (page, address) in new[] { (0, 0x10000), (1, 0x14000), (3, 0x18000), (6, 0x1C000), (7, 0x20000) })
+            SpectrumMemory.AssertPageAt(special, address, page);
+    }
+
+    [Theory]
+    [InlineData(SpectrumPlus2A)]
+    [InlineData(SpectrumPlus3E)]
+    public void GetMemory_Plus2AAndPlus3E_WithRamOverRom_AreLoadedToo(int machine)
+    {
+        var memory = Load(Snapshot(machine, 0, 0b101, AllPages));
+
+        SpectrumMemory.AssertPageAt(memory, 0x4000, 5);
+        SpectrumMemory.AssertPageAt(memory, 0x10000, 1);
     }
 
     [Fact]
     public void GetMemory_UnsupportedMachine_GivesNothing()
     {
-        AssertNothing(Load(Snapshot(Timex2068, 0, 0, [5, 2, 0])));
+        SpectrumMemory.AssertNothing(Load(Snapshot(Timex2068, 0, 0, [5, 2, 0])));
     }
 
     [Fact]
@@ -184,10 +184,10 @@ public class SzxTests
     {
         var file = Header(Spectrum48K);
         Chunk(file, "ZZZZ", new byte[1000]);
-        Chunk(file, "RAMP", RamPage(5, Page(5), true));
+        Chunk(file, "RAMP", RamPage(5, SpectrumMemory.Page(5), true));
         Chunk(file, "AY\0\0", new byte[18]);
 
-        AssertPageAt(Load(file.ToArray()), 0x4000, 5);
+        SpectrumMemory.AssertPageAt(Load(file.ToArray()), 0x4000, 5);
     }
 
     [Fact]
@@ -196,14 +196,14 @@ public class SzxTests
         // Entries of a .zip arrive as forward-only streams.
         var forwardOnly = new ForwardOnlyStream(Snapshot(Spectrum128K, 0, 0, AllPages));
 
-        AssertPageAt(SzxBinarySource.Instance.GetMemory(forwardOnly), 0x4000, 5);
+        SpectrumMemory.AssertPageAt(SzxBinarySource.Instance.GetMemory(forwardOnly), 0x4000, 5);
     }
 
     [Fact]
     public void GetMemory_NotASnapshot_GivesNothing()
     {
-        AssertNothing(Load("This is not a ZX-State file at all"u8.ToArray()));
-        AssertNothing(Load([]));
+        SpectrumMemory.AssertNothing(Load("This is not a ZX-State file at all"u8.ToArray()));
+        SpectrumMemory.AssertNothing(Load([]));
     }
 
     [Fact]
@@ -211,8 +211,8 @@ public class SzxTests
     {
         var snapshot = Snapshot(Spectrum128K, 0, 0, AllPages);
 
-        AssertNothing(Load(snapshot[..(snapshot.Length - 100)])); // inside the last page
-        AssertNothing(Load(snapshot[..12])); // inside the first chunk header
+        SpectrumMemory.AssertNothing(Load(snapshot[..(snapshot.Length - 100)])); // inside the last page
+        SpectrumMemory.AssertNothing(Load(snapshot[..12])); // inside the first chunk header
     }
 
     [Fact]
@@ -221,25 +221,25 @@ public class SzxTests
         var file = Header(Spectrum48K);
         Chunk(file, "RAMP", RamPage(5, new byte[1000], false));
 
-        AssertNothing(Load(file.ToArray()));
+        SpectrumMemory.AssertNothing(Load(file.ToArray()));
     }
 
     [Fact]
     public void GetMemory_CompressedPageThatInflatesTooFar_GivesNothing()
     {
         var file = Header(Spectrum48K);
-        Chunk(file, "RAMP", RamPage(5, new byte[PageSize * 8], true));
+        Chunk(file, "RAMP", RamPage(5, new byte[SpectrumMemory.PageSize * 8], true));
 
-        AssertNothing(Load(file.ToArray()));
+        SpectrumMemory.AssertNothing(Load(file.ToArray()));
     }
 
     [Fact]
     public void GetMemory_CompressedPageThatInflatesTooLittle_GivesNothing()
     {
         var file = Header(Spectrum48K);
-        Chunk(file, "RAMP", RamPage(5, new byte[PageSize / 2], true));
+        Chunk(file, "RAMP", RamPage(5, new byte[SpectrumMemory.PageSize / 2], true));
 
-        AssertNothing(Load(file.ToArray()));
+        SpectrumMemory.AssertNothing(Load(file.ToArray()));
     }
 
     [Theory]

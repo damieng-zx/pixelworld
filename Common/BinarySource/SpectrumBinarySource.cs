@@ -37,6 +37,23 @@ public abstract class SpectrumBinarySource
         return new ArraySegment<Byte>(memory);
     }
 
+    /// <summary>
+    /// A +2A or +3 snapshot. With bit 0 of port 0x1FFD set the machine runs "special paging", where RAM banks
+    /// replace the ROM and the memory at 0x4000, 0x8000 and 0xC000 in one of four arrangements. That only
+    /// changes which bank the processor can see where, and the snapshot still holds every bank, so they are
+    /// all kept in the usual layout: bank 5 at 0x4000 (where the screen and system variables are), bank 2 at
+    /// 0x8000, the bank port 0x7FFD names at 0xC000 and the rest after them.
+    /// </summary>
+    protected static ArraySegment<Byte> SetupPlus3Memory(Byte[][] ramBanks, Byte port7ffd, Byte port1ffd)
+    {
+        Out.Write("  Loading as ZX Spectrum 128K +3");
+
+        if ((port1ffd & 1) != 0)
+            Out.Write("  RAM is paged over the ROM, so keeping all eight banks in the usual layout");
+
+        return Setup128KMemory(ramBanks, port7ffd);
+    }
+
     protected static void CopyBank(Byte[][] ramBanks, Int32 bank, Byte[] ram, Int32 address)
     {
         Array.Copy(ramBanks[bank], 0, ram, address, 8192);

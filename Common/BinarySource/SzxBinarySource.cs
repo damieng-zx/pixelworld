@@ -67,12 +67,7 @@ public class SzxBinarySource : SpectrumBinarySource, IBinarySource
 
     private static ArraySegment<Byte> SetupPlus3Memory(SzxSnapshot snapshot)
     {
-        Out.Write("  Loading as ZX Spectrum 128K +3");
-
-        if ((snapshot.Port1ffd & 1) == 0)
-            return Setup128KMemory(snapshot);
-
-        throw new NotSupportedException("Need to implement +3 special paging mode");
+        return SetupPlus3Memory(ToBanks(snapshot), snapshot.Port7ffd, snapshot.Port1ffd);
     }
 
     private static void CopyPage(SzxSnapshot snapshot, Int32 page, Byte[] memory, Int32 address)

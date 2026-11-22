@@ -30,7 +30,7 @@ public class Z80BinarySource : SpectrumBinarySource, IBinarySource
             {
                 MemoryModel.ZX48 => Setup48KMemory(snapshot),
                 MemoryModel.ZX128 => Setup128KMemory(snapshot.RAM_BANK, snapshot.PORT_7FFD),
-                MemoryModel.ZXPlus3 => SetupPlus3Memory(snapshot),
+                MemoryModel.ZXPlus3 => SetupPlus3Memory(snapshot.RAM_BANK, snapshot.PORT_7FFD, snapshot.PORT_1FFD),
                 _ => throw new NotSupportedException($"Unknown MemoryModel {memoryModel}")
             };
         }
@@ -39,16 +39,6 @@ public class Z80BinarySource : SpectrumBinarySource, IBinarySource
             Out.Write($"  Unable to process {e.Message}");
             return new ArraySegment<Byte>();
         }
-    }
-
-    private static ArraySegment<Byte> SetupPlus3Memory(Z80_SNAPSHOT snapshot)
-    {
-        Out.Write("  Loading as ZX Spectrum 128K +3");
-
-        if ((snapshot.PORT_1FFD & 1) == 0)
-            return Setup128KMemory(snapshot.RAM_BANK, snapshot.PORT_7FFD);
-
-        throw new NotSupportedException("Need to implement +3 ROM bank paging");
     }
 
     private static ArraySegment<Byte> Setup48KMemory(Z80_SNAPSHOT snapshot)

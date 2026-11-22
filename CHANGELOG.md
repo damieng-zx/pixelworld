@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- `dump` and `screenshot` read ZX-State `.szx` snapshots (as written by Fuse, Spectaculator and others) for the 16K, 48K, 128K, +2, +2A, +3 and Pentagon 128 Spectrums, including inside `.zip` archives. Snapshots of the +2A and +3 that use their special RAM-over-ROM paging mode, and other machines such as the Timex 2068, are reported as unreadable and skipped.
+- `dump` and `screenshot` read ZX-State `.szx` snapshots (as written by Fuse, Spectaculator and others) for the 16K, 48K, 128K, +2, +2A, +3 and Pentagon 128 Spectrums, including inside `.zip` archives. Other machines, such as the Timex 2068, are reported as unreadable and skipped.
+- `.z80` and `.szx` snapshots of the +2A and +3 that have RAM paged over the ROM (port 0x1FFD special paging) are no longer rejected. All eight RAM banks are kept in the usual layout whichever way they were mapped, so the screen and the rest of memory are where `dump`, `screenshot` and `hunt` expect them.
 - `extracttiles` skips a file that is too short to hold a screen instead of stopping the whole run.
 
 ## 0.6.0 - 2026-11-14
