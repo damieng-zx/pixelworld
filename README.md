@@ -10,7 +10,7 @@ It also contains bulk-ripping `dump` and `hunt` commands for obtaining ZX Spectr
 
 ### Extraction
 
-- `dump` to RAM-dump snapshot files (currently supports `.z80` and `.sna` and recurses through `.zip` archives)
+- `dump` to RAM-dump snapshot files (currently supports `.z80`, `.sna` and `.szx` and recurses through `.zip` archives)
 - `hunt` to look through RAM dumps for possible bitmap fonts (currently supports only ZX Spectrum fonts); `--known <folder>` skips fonts already in a folder of `.ch8` files
 - `screenshot` to create a screenshots from RAM-dumps or snapshot files (in PNG, lossless WebP, SCR or animated GIF format)
 - `extracttiles` to create a files with unique 8x8 character tiles found on the screen in RAM-dumps or snapshot files

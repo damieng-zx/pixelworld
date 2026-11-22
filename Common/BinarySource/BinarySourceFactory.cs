@@ -11,6 +11,7 @@ public static class BinarySourceFactory
         {
             ".sna" => SnaBinarySource.Instance,
             ".z80" => Z80BinarySource.Instance,
+            ".szx" => SzxBinarySource.Instance,
             _ => null
         };
     }

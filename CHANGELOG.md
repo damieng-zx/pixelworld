@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- `dump` and `screenshot` read ZX-State `.szx` snapshots (as written by Fuse, Spectaculator and others) for the 16K, 48K, 128K, +2, +2A, +3 and Pentagon 128 Spectrums, including inside `.zip` archives. Snapshots of the +2A and +3 that use their special RAM-over-ROM paging mode, and other machines such as the Timex 2068, are reported as unreadable and skipped.
+- `extracttiles` skips a file that is too short to hold a screen instead of stopping the whole run.
+
 ## 0.6.0 - 2026-11-14
 
 ### Font hunting
