@@ -24,6 +24,15 @@ public class TileExtractor
             using var reader = new BinaryReader(source);
             var buffer = reader.ReadBytes(1024 * 2048);
             var address = buffer.Length == Spectrum.AddressSpace ? Spectrum.ScreenStart : 0;
+
+            // Anything shorter than a screen would run the tile reader off the end of the buffer, and
+            // one stray file in a glob should not stop the rest.
+            if (buffer.Length < address + Spectrum.ScreenSize)
+            {
+                Out.Write($"  Skipping {fileName} as {buffer.Length} bytes is too short for a screen");
+                continue;
+            }
+
             var tiles = SpectrumDisplay.GetCandidates(buffer, address);
 
             if (tiles.Length > maxTiles)
