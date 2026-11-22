@@ -55,8 +55,11 @@ public class ScreenshotCommand : Command<ScreenshotSettings>
         if (settings.Gif)
             WriteGif(fileName, memory, settings, address);
 
+        if (settings.AnimatedWebp)
+            WriteAnimatedWebp(fileName, memory, settings, address);
+
         // Write SCR if specified OR if nothing specified (so it is the default)
-        if (settings.Scr || settings is {Png: false, Gif: false, Webp: false})
+        if (settings.Scr || settings is {Png: false, Gif: false, Webp: false, AnimatedWebp: false})
             WriteScr(fileName, memory, settings, address);
 
         return true;
@@ -80,6 +83,17 @@ public class ScreenshotCommand : Command<ScreenshotSettings>
         List<Bitmap> frames = [SpectrumDisplay.GetBitmap(bytes, address), SpectrumDisplay.GetBitmap(bytes, address, true)];
         using var output = File.Create(targetName);
         Gif.Write(frames, FlashDelay, output);
+    }
+
+    private static void WriteAnimatedWebp(String sourceName, ArraySegment<Byte> memory, ScreenshotSettings settings, Int32 address)
+    {
+        // Named apart from the still so that --webp and --animated-webp do not overwrite each other.
+        var targetName = Utils.MakeFileName(sourceName, "animated.webp", settings.OutputFolder);
+        Out.Write($"  Screenshotting {sourceName} @ {address} to {targetName}");
+        var bytes = memory.ToArray();
+        List<Bitmap> frames = [SpectrumDisplay.GetBitmap(bytes, address), SpectrumDisplay.GetBitmap(bytes, address, true)];
+        using var output = File.Create(targetName);
+        Webp.WriteAnimation(frames, FlashDelay * 10, output); // the GIF delay is in hundredths of a second
     }
 
     private static void WritePng(String sourceName, Bitmap image, ScreenshotSettings settings, Int32 address)

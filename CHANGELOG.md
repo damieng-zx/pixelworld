@@ -4,6 +4,8 @@
 
 - `dump` and `screenshot` read ZX-State `.szx` snapshots (as written by Fuse, Spectaculator and others) for the 16K, 48K, 128K, +2, +2A, +3 and Pentagon 128 Spectrums, including inside `.zip` archives. Other machines, such as the Timex 2068, are reported as unreadable and skipped.
 - `.z80` and `.szx` snapshots of the +2A and +3 that have RAM paged over the ROM (port 0x1FFD special paging) are no longer rejected. All eight RAM banks are kept in the usual layout whichever way they were mapped, so the screen and the rest of memory are where `dump`, `screenshot` and `hunt` expect them.
+- `screenshot --animated-webp` writes the flashing screen as a lossless animated WebP (`name.animated.webp`), like `--gif` but several times smaller: a frame that differs from the one before is stored as just the changed area, and a frame that does not differ is not stored at all.
+- WebP files are about 13% smaller. Instead of taking the longest matching run of pixels, the encoder now works out what each choice costs to write and finds the cheapest route through the picture. Over 40 real screens that is 2% smaller than libwebp's own best setting, and the files decode identically in libwebp.
 - `extracttiles` skips a file that is too short to hold a screen instead of stopping the whole run.
 
 ## 0.6.0 - 2026-11-14

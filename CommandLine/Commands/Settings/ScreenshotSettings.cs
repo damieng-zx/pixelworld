@@ -18,6 +18,10 @@ public class ScreenshotSettings : RequiredSettings
     [Description("Write a lossless .webp version of the screenshot.")]
     public Boolean Webp { get; set; }
 
+    [CommandOption("--animated-webp")]
+    [Description("Write an animated lossless .animated.webp of the screenshot, flashing like the GIF.")]
+    public Boolean AnimatedWebp { get; set; }
+
     [CommandOption("--scr")]
     [Description("Write a .scr version of the screenshot (default).")]
     public Boolean Scr { get; set; }
